@@ -7,10 +7,10 @@ This file declares the TATP data base and the different transactions supported b
 the database.
 */
 
-#include <cstdint>
-//#include <atomic>
+#ifndef _TATP_DB_
+#define _TATP_DB_
 #include <pthread.h>
-
+#include <atomic>
 #include "tableEntries.h"
 
 class TATP_DB{
@@ -27,7 +27,6 @@ class TATP_DB{
     unsigned long* subscriber_rndm_seeds;
     unsigned long* vlr_rndm_seeds;
     unsigned long* rndm_seeds;
-
 
   public:
     TATP_DB(unsigned num_subscribers); // Constructs and sizes tables as per num_subscribers
@@ -77,3 +76,4 @@ struct recovery_update_location {
   unsigned vlr_location; // the old vlr location
   char padding[7];
 };
+#endif
