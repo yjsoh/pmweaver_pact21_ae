@@ -49,24 +49,23 @@ void init_db(uint64_t num_subscribers, uint64_t nthreads)
 
 void update_locations(uint64_t nops, uint64_t id)
 {
-#ifdef GEM5
-	m5_work_begin(coreid, 0);
-#endif
 	for (int i = 0; i < nops; i++)
 	{
 		long subId = my_tatp_db->get_sub_id();
 		uint64_t vlr = my_tatp_db->get_random_vlr(0);
+
 #ifdef _ENABLE_LOGGING
+		pthread_mutex_lock(&my_tatp_db->lock_[subId]);
 		my_tatp_db->backup_location(subId);
 #endif
+
 		my_tatp_db->update_location(subId, vlr);
+
 #ifdef _ENABLE_LOGGING
+		pthread_mutex_unlock(&my_tatp_db->lock_[subId]);
 		my_tatp_db->discard_backup(subId);
 #endif
 	}
-#ifdef GEM5
-	m5_work_end(coreid, 0);
-#endif
 }
 
 // from stackoverflow: https://stackoverflow.com/questions/68804469/subtract-two-timespec-objects-find-difference-in-time-or-duration
@@ -269,6 +268,7 @@ int main(int argc, char *argv[])
 	uint64_t nthreads = atoi(argv[3]);
 
 	init_db(nsub, nthreads);
+
 	my_tatp_db->populate_tables(nsub);
 
 	run(argv, nsub, nops, nthreads);

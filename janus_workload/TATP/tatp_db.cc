@@ -252,17 +252,12 @@ void TATP_DB::update_subscriber_data(int threadId)
 
 	if (special_facility_table[special_facility_tab_indx].valid)
 	{
-
-#ifdef _NOT_SINGLE_THREAD
 		pthread_mutex_lock(&lock_[rndm_s_id]);
-#endif
 
 		subscriber_table[rndm_s_id].bit_1 = getRand() % 2;
 		special_facility_table[special_facility_tab_indx].data_a = getRand() % 256;
 
-#ifdef _NOT_SINGLE_THREAD
 		pthread_mutex_unlock(&lock_[rndm_s_id]);
-#endif
 	}
 
 	return;
@@ -301,7 +296,7 @@ void TATP_DB::discard_backup(long subId)
 void TATP_DB::update_location(long subId, uint64_t vlr)
 {
 
-#ifdef _NOT_SINGLE_THREAD
+#ifndef _ENABLE_LOGGING
 	pthread_mutex_lock(&lock_[subId]);
 #endif
 
@@ -309,7 +304,7 @@ void TATP_DB::update_location(long subId, uint64_t vlr)
 	flush_caches(&subscriber_table[subId], sizeof(subscriber_table[subId]));
 	s_fence();
 
-#ifdef _NOT_SINGLE_THREAD
+#ifndef _ENABLE_LOGGING
 	pthread_mutex_unlock(&lock_[subId]);
 #endif
 
