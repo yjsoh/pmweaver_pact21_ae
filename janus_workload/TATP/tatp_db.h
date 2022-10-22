@@ -13,20 +13,21 @@ the database.
 #include <atomic>
 #include "tableEntries.h"
 
-class TATP_DB{
 
-  private:
-    long total_subscribers; // Holds the number of subscribers
-    int num_threads;
-    subscriber_entry* subscriber_table; // Pointer to the subscriber table
-    access_info_entry* access_info_table; // Pointer to the access info table
-    special_facility_entry* special_facility_table; // Pointer to the special facility table
-    call_forwarding_entry* call_forwarding_table; // Pointer to the call forwarding table
-    pthread_mutex_t* lock_; // Lock per subscriber to protect the update
-    //std::atomic<long>** txCounts; // Array of tx counts, success and fails
-    unsigned long* subscriber_rndm_seeds;
-    unsigned long* vlr_rndm_seeds;
-    unsigned long* rndm_seeds;
+class TATP_DB
+{
+
+private:
+  long total_subscribers; // Holds the number of subscribers
+  int num_threads;
+  subscriber_entry *subscriber_table;             // Pointer to the subscriber table
+  access_info_entry *access_info_table;           // Pointer to the access info table
+  special_facility_entry *special_facility_table; // Pointer to the special facility table
+  call_forwarding_entry *call_forwarding_table;   // Pointer to the call forwarding table
+  pthread_mutex_t *lock_;                         // Lock per subscriber to protect the update
+  unsigned long *subscriber_rndm_seeds;
+  unsigned long *vlr_rndm_seeds;
+  unsigned long *rndm_seeds;
 
   public:
     TATP_DB(unsigned num_subscribers); // Constructs and sizes tables as per num_subscribers

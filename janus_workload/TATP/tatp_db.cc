@@ -11,8 +11,6 @@ This file defines the various transactions in TATP.
 #include "../common/common.h"
 #define NUM_RNDM_SEEDS 1280
 
-// extern std::atomic<uint64_t> count;
-pthread_mutex_t *lock_;
 
 int getRand()
 {
