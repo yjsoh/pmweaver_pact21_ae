@@ -18,9 +18,12 @@ This file is the TATP benchmark, performs various transactions as per the specif
 #include <string>
 #include <fstream>
 #include <thread>
+#include <iomanip>
+#include <math.h>
 #include "../common/common.h"
 
 std::atomic<uint64_t> count;
+std::atomic<bool> stop;
 
 #ifdef _ENABLE_AGR
 extern void *my_context_void();
@@ -35,25 +38,41 @@ void init_db(uint64_t num_subscribers, uint64_t nthreads)
 	my_tatp_db->initialize(num_subscribers, nthreads);
 }
 
-void update_locations(uint64_t nops, uint64_t id)
+uint64_t update_locations(uint64_t nops, uint64_t id)
 {
-	for (int i = 0; i < nops; i++)
+	uint64_t ops = 0;
+	fprintf(stdout, "Running received.\n");
+	while (!stop)
 	{
+
 		long subId = my_tatp_db->get_random_s_id(id);
 		uint64_t vlr = my_tatp_db->get_random_vlr(id);
 
+		// fprintf(stdout, "subId=%ld, vlr=%lu\n", subId, vlr);
+
 #ifdef _ENABLE_LOGGING
 		pthread_mutex_lock(&my_tatp_db->lock_[subId]);
-		my_tatp_db->backup_location(subId);
+
+		// Backup memory is within thread local.
+		// But don't allow other thread to change it to avoid stale backup.
+		my_tatp_db->backup_location(id, subId);
 #endif
 
 		my_tatp_db->update_location(subId, vlr);
 
 #ifdef _ENABLE_LOGGING
 		pthread_mutex_unlock(&my_tatp_db->lock_[subId]);
-		my_tatp_db->discard_backup(subId);
+
+		// Backup memory is within thread local.
+		// Don't have to be inside the critial section.
+		my_tatp_db->discard_backup(id, subId);
 #endif
+		ops++;
 	}
+
+	fprintf(stdout, "Stop received. Returning: %lu\n", ops);
+
+	return ops;
 }
 
 // from stackoverflow: https://stackoverflow.com/questions/68804469/subtract-two-timespec-objects-find-difference-in-time-or-duration
@@ -169,6 +188,8 @@ struct thread_data
 {
 	uint32_t tid;
 	uint64_t ops;
+	uint64_t from, to;
+	bool load;
 };
 
 /* An operation every thread runs during the execution */
@@ -177,6 +198,9 @@ void *threadRun(void *arg)
 	struct thread_data *tData = (struct thread_data *)arg;
 	uint32_t id = tData->tid;
 	uint64_t ops = tData->ops;
+	uint64_t from = tData->from;
+	uint64_t to = tData->to;
+	bool load = tData->load;
 
 	// Set CPU affinity
 	set_cpu(id - 1);
@@ -188,56 +212,88 @@ void *threadRun(void *arg)
 	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_void());
 #endif
 
-	barrier_cross(&init_barrier);
+	if(load)
+	{
+		my_tatp_db->populate_tables(from, to);
+		std::cout << "Populate Table done: " << id << "\n";
+	}
+	else
+	{
+		barrier_cross(&init_barrier);
+		barrier_cross(&barrier_global);
 
-	update_locations(ops, id);
+		tData->ops = update_locations(ops, id);
+	}
 
-	// barrier_cross(&barrier_global);
 	return NULL;
 }
 
-void run(char *argv[], uint64_t nsub, uint64_t nops, uint64_t nthreads)
+void run(char *argv[], uint64_t nsub, uint64_t nops, uint64_t nthreads, uint64_t duration)
 {
 	struct timespec tv_start, tv_end;
 	std::ofstream fexec;
-	fexec.open("exec.csv", std::ios_base::app);
+	fexec.open("tatp.csv", std::ios_base::app);
 
+	/* Load */
+	unsigned max_nthreads = (nthreads > LOAD_THREADS)?nthreads:LOAD_THREADS;
+	pthread_t threads[max_nthreads];
+	thread_data allThreadsData[max_nthreads];
+	unsigned per_thread_sub = nsub / LOAD_THREADS;
+
+	for (uint32_t j = 1; j < LOAD_THREADS + 1; j++)
+	{
+		thread_data &tData = allThreadsData[j - 1];
+		tData.tid = j;
+		tData.ops = 0;
+		tData.from = (j - 1) * per_thread_sub;
+		tData.to = j * per_thread_sub;
+		tData.load = true;
+		pthread_create(&threads[j - 1], NULL, threadRun, (void *)&tData);
+	}
+
+	for (int i = 0; i < LOAD_THREADS; i++)
+	{
+		pthread_join(threads[i], NULL);
+	}
+
+	/* Run */
 	barrier_init(&barrier_global, nthreads + 1);
-	barrier_init(&init_barrier, nthreads + 1);
-
-	// std::thread *threads[nthreads];
-	pthread_t threads[nthreads];
-	thread_data allThreadsData[nthreads];
-
+	barrier_init(&init_barrier, nthreads);
+	stop = (false);
 	for (uint32_t j = 1; j < nthreads + 1; j++)
 	{
 		thread_data &tData = allThreadsData[j - 1];
 		tData.tid = j;
-		tData.ops = nops / nthreads;
-		// threads[j - 1] = new std::thread(threadRun, &tData);
+		tData.ops = 0;
+		tData.load = false;
 		pthread_create(&threads[j - 1], NULL, threadRun, (void *)&tData);
 	}
 
-	barrier_cross(&init_barrier);
+	barrier_cross(&barrier_global);
 
-	clock_gettime(CLOCK_REALTIME, &tv_start);
+	sleep(duration);
+	printf("Wakeup\n");
 
+	stop = (true);
 	for (int i = 0; i < nthreads; i++)
 	{
-		// threads[i]->join();
 		pthread_join(threads[i], NULL);
 	}
 
-	clock_gettime(CLOCK_REALTIME, &tv_end);
+	/* Collect */
+	uint64_t totalOps = 0;
+	for (uint32_t j = 0; j < nthreads; j++)
+	{
+		totalOps += allThreadsData[j].ops;
+	}
 
-	struct timespec difftime = diff_timespec(&tv_end, &tv_start);
-	uint64_t duration = difftime.tv_sec * 1000000000LLU + difftime.tv_nsec;
-	double duration_sec = (double)duration / 1000000000LLU;
+	uint64_t tput = (uint64_t)((double)totalOps) / ((double)duration);
+	double mtput = (double)tput / (1000000UL);
 
-	fexec << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(nops) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << std::endl;
-	std::cout << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(nops) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << std::endl;
-	std::cerr << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(nops) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << std::endl;
-	fprintf(stderr, "%s,%lf,%lu\n", argv[0], duration_sec, count.load());
+	uint64_t precision = 4;
+	fexec << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << std::endl;
+	std::cout << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+	std::cerr << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
 
 	fexec.close();
 }
@@ -245,21 +301,22 @@ void run(char *argv[], uint64_t nsub, uint64_t nops, uint64_t nthreads)
 
 int main(int argc, char *argv[])
 {
-	if (argc != 4)
+	if (argc != 5)
 	{
-		fprintf(stderr, "%s NSUBSCRIBER NOPS NTHREADS\n", argv[0]);
+		fprintf(stderr, "%s NSUBSCRIBER NOPS NTHREADS DURATION\n", argv[0]);
 		return -1;
 	}
 
 	uint64_t nsub = atoi(argv[1]);
 	uint64_t nops = atoi(argv[2]);
 	uint64_t nthreads = atoi(argv[3]);
+	uint64_t duration = atoi(argv[4]);
+
+	assert((nsub % LOAD_THREADS == 0) && "NSUB must be divisible by NTHREADS");
 
 	init_db(nsub, nthreads);
 
-	my_tatp_db->populate_tables(nsub);
-
-	run(argv, nsub, nops, nthreads);
+	run(argv, nsub, nops, nthreads, duration);
 
 	free(my_tatp_db);
 
