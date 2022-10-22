@@ -168,7 +168,9 @@ int __wrap_pthread_join(pthread_t thread, void **retval)
  * 2. Hooks callbacks
  */
 // void *basePtr = NULL;
+#ifdef __cplusplus
 extern "C" {
+#endif
 int is_nvmm(void *ptr)
 {
 	return IS_NVMM(ptr) ? 1 : 0;
@@ -193,7 +195,9 @@ int nvmm_strcmp(const char *str1, const char *str2)
 	const char *ptr2 = IS_NVMM(str2) ? ABS_PTR(const char, str2) : str2;
 	return strcmp(ptr1, ptr2);
 }
+#ifdef __cplusplus
 }
+#endif
 
 
 /*
@@ -310,8 +314,9 @@ int __wrap_pthread_mutex_init(pthread_mutex_t *lock,
 	return __real_pthread_mutex_init(lock, attr);
 }
 */
-
+#ifdef __cplusplus
 extern "C" {
+#endif
 int __real_pthread_mutex_lock(pthread_mutex_t *lock);
 int __wrap_pthread_mutex_lock(pthread_mutex_t *lock)
 {
@@ -351,7 +356,9 @@ int __wrap_pthread_mutex_unlock(pthread_mutex_t *lock)
 	assert(__real_pthread_mutex_unlock(lock) == 0);
 	return 0;
 }
+#ifdef __cplusplus
 }
+#endif
 
 /*
  * 4. Allocation Wrappers
