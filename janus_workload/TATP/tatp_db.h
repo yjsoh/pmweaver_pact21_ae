@@ -60,20 +60,4 @@ class TATP_DB{
     void print_results();
 };
 
-//DS for logging info to recover from a failed update_subscriber_data Tx
-struct recovery_update_subscriber_data {
-  char txType; // will be '0'
-  unsigned s_id; // the subscriber id being updated
-  short sf_type; // the sf_type being modified
-  short bit_1; // the old bit_! value
-  short data_a; // the old data_a value
-  char padding[5];
-};
-
-struct recovery_update_location {
-  char txType; // will be '1'
-  unsigned s_id; // the subcriber whose location is being updated
-  unsigned vlr_location; // the old vlr location
-  char padding[7];
-};
 #endif

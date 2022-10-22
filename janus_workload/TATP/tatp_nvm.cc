@@ -25,24 +25,13 @@ std::atomic<uint64_t> count;
 #ifdef _ENABLE_AGR
 extern void *my_context_void();
 #endif
-// Korakit
-// might need to change parameters
-// #define NUM_SUBSCRIBERS 1000
-// #define NUM_SUBSCRIBERS 100000
-// #define NUM_OPS_PER_CS 2
-// #define NUM_OPS 3000
-// #define NUM_OPS 10000000
-// #define NUM_THREADS 2
 
 TATP_DB *my_tatp_db;
-//#include "../DCT/rdtsc.h"
 void *pop = NULL;
 
 void init_db(uint64_t num_subscribers, uint64_t nthreads)
 {
 	init_pmalloc();
-	// unsigned num_subscribers = NUM_SUBSCRIBERS;
-	// my_tatp_db = (TATP_DB *)aligned_malloc(64, sizeof(TATP_DB));
 	my_tatp_db = new TATP_DB(num_subscribers);
 	my_tatp_db->initialize(num_subscribers, nthreads);
 }
