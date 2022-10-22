@@ -1,3 +1,6 @@
 *.o
-tatp-clobber
-exec.csv
+tatp.adr.undo
+tatp.eadr.undo
+tatp.adr.clobber
+tatp.eadr.clobber
+tatp.csv
