@@ -29,9 +29,10 @@ private:
   unsigned long *vlr_rndm_seeds;
   unsigned long *rndm_seeds;
 
-  public:
-    TATP_DB(unsigned num_subscribers); // Constructs and sizes tables as per num_subscribers
-    ~TATP_DB();
+public:
+  pthread_mutex_t *lock_;            // Lock per subscriber to protect the update
+  TATP_DB(unsigned num_subscribers); // Constructs and sizes tables as per num_subscribers
+  ~TATP_DB();
 
     void initialize(unsigned num_subscribers, int n);
 
