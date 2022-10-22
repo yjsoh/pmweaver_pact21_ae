@@ -31,7 +31,6 @@ void *pop = NULL;
 
 void init_db(uint64_t num_subscribers, uint64_t nthreads)
 {
-	init_pmalloc();
 	my_tatp_db = new TATP_DB(num_subscribers);
 	my_tatp_db->initialize(num_subscribers, nthreads);
 }
