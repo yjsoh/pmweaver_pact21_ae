@@ -157,6 +157,7 @@ void *agr_pmem_memcpy(void *dest, const void *src, size_t n)
 
 void *pmem_alloc(size_t size)
 {
+	if(pop == NULL) init_runtime();
 	void *toRet = pop;
 	pop = ((char *)pop) + size;
 	return toRet;
