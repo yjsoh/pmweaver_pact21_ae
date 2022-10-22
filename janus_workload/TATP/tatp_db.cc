@@ -83,7 +83,7 @@ void TATP_DB::initialize(unsigned num_subscribers, int n)
 
 TATP_DB::~TATP_DB()
 {
-
+	free(lock_);
 	free(subscriber_rndm_seeds);
 	free(vlr_rndm_seeds);
 	free(rndm_seeds);
