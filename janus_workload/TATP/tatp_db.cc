@@ -30,8 +30,13 @@ void TATP_DB::initialize(unsigned num_subscribers, int n)
 	size_t aitsz = 4 * num_subscribers * sizeof(access_info_entry);
 	size_t sftsz = 4 * num_subscribers * sizeof(special_facility_entry);
 	size_t cftsz = 3 * 4 * num_subscribers * sizeof(call_forwarding_entry);
+	size_t backupsz = nthreads * sizeof(subscriber_entry);
+	size_t validsz = nthreads * sizeof(VALID_BIT_TYPE);
 
-	void *pool = aligned_malloc(64, stsz + aitsz + sftsz + cftsz);
+	size_t total_alloc_size = stsz + aitsz + sftsz + cftsz + backupsz + validsz;
+
+	void *pool = pmalloc(total_alloc_size);
+	std::cout << "Allocating aligned_malloc of " << (double)(total_alloc_size) / (1UL << 20) << " MB\n";
 
 	subscriber_table = (subscriber_entry *)(pool);
 
@@ -45,27 +50,16 @@ void TATP_DB::initialize(unsigned num_subscribers, int n)
 	call_forwarding_table = (call_forwarding_entry *)((size_t)pool + stsz + aitsz + sftsz);
 	std::cout << "Table initialized at " << (void *)call_forwarding_table << std::endl;
 
-#ifdef _NOT_SINGLE_THREAD
+	backup = (subscriber_entry *)((size_t)pool + stsz + aitsz + sftsz + cftsz);
+	valid = (VALID_BIT_TYPE *)((size_t)pool + stsz + aitsz + sftsz + cftsz + backupsz);
+
 	lock_ = (pthread_mutex_t *)malloc(num_subscribers * sizeof(pthread_mutex_t));
 
 	for (int i = 0; i < num_subscribers; i++)
 	{
 		pthread_mutex_init(&lock_[i], NULL);
 	}
-#endif
 
-	for (int i = 0; i < 4 * num_subscribers; i++)
-	{
-		access_info_table[i].valid = false;
-		special_facility_table[i].valid = false;
-		for (int j = 0; j < 3; j++)
-		{
-			call_forwarding_table[3 * i + j].valid = false;
-		}
-	}
-
-	// rndm_seeds = new std::atomic<unsigned long>[NUM_RNDM_SEEDS];
-	// rndm_seeds = (std::atomic<unsigned long>*) malloc(NUM_RNDM_SEEDS*sizeof(std::atomic<unsigned long>));
 	subscriber_rndm_seeds = (unsigned long *)malloc(NUM_RNDM_SEEDS * sizeof(unsigned long));
 	vlr_rndm_seeds = (unsigned long *)malloc(NUM_RNDM_SEEDS * sizeof(unsigned long));
 	rndm_seeds = (unsigned long *)malloc(NUM_RNDM_SEEDS * sizeof(unsigned long));
@@ -242,7 +236,7 @@ void TATP_DB::make_upper_case_string(char *string_ptr, int num_chars)
 	return;
 }
 
-void TATP_DB::update_subscriber_data(int threadId)
+void TATP_DB::update_subscriber_data(int thread_id)
 {
 	unsigned rndm_s_id = getRand() % total_subscribers;
 	short rndm_sf_type = getRand() % 4 + 1;
@@ -269,25 +263,24 @@ long TATP_DB::get_sub_id()
 	return ((long)get_random_s_id(0)) / total_subscribers;
 }
 
-void TATP_DB::backup_location(long subId)
+void TATP_DB::backup_location(int thread_id, long subId)
 {
-	/* Backup the location */
-	subscriber_table_entry_backup = subscriber_table[subId];
-	flush_caches(&subscriber_table_entry_backup, sizeof(subscriber_table_entry_backup));
+	memcpy(&backup[thread_id], &subscriber_table[subId], sizeof(subscriber_entry));
+	flush_caches(&backup[thread_id], sizeof(subscriber_entry));
 	s_fence();
 
 	/* Set the valid bit to 1 */
-	subscriber_table_entry_backup_valid = 1;
-	flush_caches(&subscriber_table_entry_backup_valid, sizeof(uint64_t));
+	valid[thread_id] = 1;
+	flush_caches(&valid[thread_id], sizeof(VALID_BIT_TYPE));
 	s_fence();
 
 	return;
 }
 
-void TATP_DB::discard_backup(long subId)
+void TATP_DB::discard_backup(int thread_id, long subId)
 {
-	subscriber_table_entry_backup_valid = 0;
-	flush_caches(&subscriber_table_entry_backup_valid, sizeof(uint64_t));
+	valid[thread_id] = 0;
+	flush_caches(&valid[thread_id], sizeof(VALID_BIT_TYPE));
 	s_fence();
 }
 
@@ -309,12 +302,12 @@ void TATP_DB::update_location(long subId, uint64_t vlr)
 	return;
 }
 
-void TATP_DB::insert_call_forwarding(int threadId)
+void TATP_DB::insert_call_forwarding(int thread_id)
 {
 	return;
 }
 
-void TATP_DB::delete_call_forwarding(int threadId)
+void TATP_DB::delete_call_forwarding(int thread_id)
 {
 	return;
 }
