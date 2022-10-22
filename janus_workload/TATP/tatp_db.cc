@@ -8,9 +8,11 @@ This file defines the various transactions in TATP.
 #include "tatp_db.h"
 #include <cstdlib> // For rand
 #include <iostream>
+#include <pthread.h>
 #include "../common/common.h"
 #define NUM_RNDM_SEEDS 1280
 
+pthread_mutex_t print_lock;
 
 int getRand()
 {
@@ -20,11 +22,11 @@ int getRand()
 TATP_DB::TATP_DB(unsigned num_subscribers) {}
 // Korakit
 // this function is used in setup phase, no need to provide crash consistency
-void TATP_DB::initialize(unsigned num_subscribers, int n)
+void TATP_DB::initialize(unsigned num_subscribers, int nthreads)
 {
-	std::cout << " num_sub: " << num_subscribers << " nthreads: " << n << std::endl;
 	total_subscribers = num_subscribers;
-	num_threads = n;
+	num_threads = nthreads;
+	std::cout << "[initialize] num_sub: " << num_subscribers << " nthreads: " << nthreads << std::endl;
 
 	size_t stsz = num_subscribers * sizeof(subscriber_entry);
 	size_t aitsz = 4 * num_subscribers * sizeof(access_info_entry);
@@ -55,6 +57,7 @@ void TATP_DB::initialize(unsigned num_subscribers, int n)
 
 	lock_ = (pthread_mutex_t *)malloc(num_subscribers * sizeof(pthread_mutex_t));
 
+	pthread_mutex_init(&print_lock, NULL);
 	for (int i = 0; i < num_subscribers; i++)
 	{
 		pthread_mutex_init(&lock_[i], NULL);
@@ -63,7 +66,6 @@ void TATP_DB::initialize(unsigned num_subscribers, int n)
 	subscriber_rndm_seeds = (unsigned long *)malloc(NUM_RNDM_SEEDS * sizeof(unsigned long));
 	vlr_rndm_seeds = (unsigned long *)malloc(NUM_RNDM_SEEDS * sizeof(unsigned long));
 	rndm_seeds = (unsigned long *)malloc(NUM_RNDM_SEEDS * sizeof(unsigned long));
-	// sgetRand();
 	for (int i = 0; i < NUM_RNDM_SEEDS; i++)
 	{
 		subscriber_rndm_seeds[i] = getRand() % (NUM_RNDM_SEEDS * 10) + 1;
@@ -84,7 +86,43 @@ TATP_DB::~TATP_DB()
 // this function is used in setup phase, no need to provide crash consistency
 void TATP_DB::populate_tables(unsigned num_subscribers)
 {
-	for (int i = 0; i < num_subscribers; i++)
+	populate_tables(0, num_subscribers);
+}
+
+void TATP_DB::populate_tables(unsigned from, unsigned to)
+{
+	// pthread_mutex_lock(&print_lock);
+	// std::cout << "Init Begin (" << from << "," << to << ")\n";
+	// pthread_mutex_unlock(&print_lock);
+	// for (int i = from; i < to; i++)
+	// {
+	// 	pthread_mutex_lock(&print_lock);
+	// 	pthread_mutex_init(&lock_[i], NULL);
+	// 	pthread_mutex_unlock(&print_lock);
+	// }
+	// pthread_mutex_lock(&print_lock);
+	// std::cout << "Mutex Init Done (" << from << "," << to << ")\n";
+	// pthread_mutex_unlock(&print_lock);
+
+	pthread_mutex_lock(&print_lock);
+	std::cout << "Set False Begin (" << from << "," << to << ")\n";
+	std::cout << "Set False Begin (" << from * 4 << "," << to * 4 << ")\n";
+	pthread_mutex_unlock(&print_lock);
+
+	for (int i = (from / LOAD_THREADS) * 4; i < 4 *  (to / LOAD_THREADS); i++)
+	{
+		access_info_table[i].valid = false;
+		special_facility_table[i].valid = false;
+		for (int j = 0; j < 3; j++)
+		{
+			call_forwarding_table[3 * i + j].valid = false;
+		}
+	}
+	pthread_mutex_lock(&print_lock);
+	std::cout << "Set False Done (" << from << "," << to << ")\n";
+	pthread_mutex_unlock(&print_lock);
+
+	for (int i = from; i < to; i++)
 	{
 		fill_subscriber_entry(i);
 		int num_ai_types = getRand() % 4 + 1; // num_ai_types varies from 1->4
@@ -103,6 +141,9 @@ void TATP_DB::populate_tables(unsigned num_subscribers)
 			}
 		}
 	}
+	pthread_mutex_lock(&print_lock);
+	std::cout << "Populate Done (" << from << "," << to << ")\n";
+	pthread_mutex_unlock(&print_lock);
 }
 // Korakit
 // this function is used in setup phase, no need to provide crash consistency
@@ -255,13 +296,6 @@ void TATP_DB::update_subscriber_data(int thread_id)
 	return;
 }
 
-__thread subscriber_entry subscriber_table_entry_backup;
-__thread uint64_t subscriber_table_entry_backup_valid;
-
-long TATP_DB::get_sub_id()
-{
-	return ((long)get_random_s_id(0)) / total_subscribers;
-}
 
 void TATP_DB::backup_location(int thread_id, long subId)
 {
@@ -342,9 +376,10 @@ unsigned long TATP_DB::get_random(int thread_id, int min, int max)
 
 unsigned long TATP_DB::get_random_s_id(int thread_id)
 {
-	unsigned long tmp;
-	tmp = subscriber_rndm_seeds[thread_id * 10] = (subscriber_rndm_seeds[thread_id * 10] * 16807) % 2147483647;
-	return (1 + tmp % (total_subscribers));
+	// unsigned long tmp;
+	// printf("tmp=%d total_subscriber=%ld resulting in = %lu", tmp, total_subscribers, tmp % total_subscribers);
+	int tmp = rand();
+	return (tmp) % (total_subscribers);
 }
 
 unsigned long TATP_DB::get_random_vlr(int thread_id)

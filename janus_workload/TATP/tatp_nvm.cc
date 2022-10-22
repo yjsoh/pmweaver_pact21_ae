@@ -40,7 +40,7 @@ void update_locations(uint64_t nops, uint64_t id)
 {
 	for (int i = 0; i < nops; i++)
 	{
-		long subId = my_tatp_db->get_sub_id();
+		long subId = my_tatp_db->get_random_s_id(id);
 		uint64_t vlr = my_tatp_db->get_random_vlr(0);
 
 #ifdef _ENABLE_LOGGING

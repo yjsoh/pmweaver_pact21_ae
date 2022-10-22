@@ -57,7 +57,6 @@ public:
 
   // Tx: updates a random subscriber data
   void update_subscriber_data(int thread_id);
-  long get_sub_id();
   void backup_location(int thread_id, long subId);
   void discard_backup(int thread_id, long subId);
   // Tx: updates location for a random subscriber
