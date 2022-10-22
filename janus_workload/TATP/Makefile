@@ -16,7 +16,7 @@ LDFLAGS_CLOBBER:=-Wl,--wrap=pthread_join -Wl,--wrap=pthread_create\
 
 EADR_FLAG:=-D PMEM_NO_FLUSH=1
 
-all: tatp.adr.undolog tatp.eadr.undolog tatp.adr.clobber tatp.eadr.clobber
+all: tatp.adr.undo tatp.eadr.undo tatp.adr.clobber tatp.eadr.clobber
 
 admin_pop.o: wrap/admin_pop.c
 	$(CLOBBERCLANGPP) $(CFLAGS) -c -o $@ $^
@@ -27,10 +27,10 @@ context.o: wrap/context.c wrap/context.h
 clobber.o: wrap/clobber.c
 	$(CLOBBERCLANGPP) $(CFLAGS) -c -o $@ $^
 
-tatp.adr.undolog: $(SOURCES)
+tatp.adr.undo: $(SOURCES)
 	$(CXX) $(CFLAGS) $(LDLIBS) $^ -D_ENABLE_LOGGING -o $@
 
-tatp.eadr.undolog: $(SOURCES)
+tatp.eadr.undo: $(SOURCES)
 	$(CXX) $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $^ -D_ENABLE_LOGGING -o $@
 
 tatp.adr.clobber: $(SOURCES) clobber.o context.o admin_pop.o
@@ -46,6 +46,6 @@ tatp.eadr.clobber: $(SOURCES) clobber.o context.o admin_pop.o
 	$(CLOBBERCLANGPP) tatp_db.eadr.o tatp_nvm.eadr.o common.eadr.o clobber.o context.o admin_pop.o $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $(LDFLAGS_CLOBBER) -o $@
 
 clean:
-	rm -f tatp.adr.undolog tatp.adr.clobber
-	rm -f tatp.eadr.undolog tatp.eadr.clobber
+	rm -f tatp.adr.undo tatp.adr.clobber
+	rm -f tatp.eadr.undo tatp.eadr.clobber
 	rm -f *.o
