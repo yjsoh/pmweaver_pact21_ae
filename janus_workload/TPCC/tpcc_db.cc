@@ -39,17 +39,21 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	uint64_t num_order_lines = 15 * num_orders; // Max possible, average is 10*num_orders
 	uint64_t num_new_orders = 900 * num_districts;
 
-	warehouse = (warehouse_entry *)aligned_malloc(64, nwarehouse * sizeof(warehouse_entry));
-	district = (district_entry *)aligned_malloc(64, num_districts * sizeof(district_entry));
-	customer = (customer_entry *)aligned_malloc(64, num_customers * sizeof(customer_entry));
-	stock = (stock_entry *)aligned_malloc(64, num_stocks * sizeof(stock_entry));
-	item = (item_entry *)aligned_malloc(64, nitems * sizeof(item_entry));
-	history = (history_entry *)aligned_malloc(64, num_histories * sizeof(history_entry));
-	order = (order_entry *)aligned_malloc(64, num_orders * sizeof(order_entry));
-	new_order = (new_order_entry *)aligned_malloc(64, num_new_orders * sizeof(new_order_entry));
-	order_line = (order_line_entry *)aligned_malloc(64, num_order_lines * sizeof(order_line_entry));
+	warehouse = (warehouse_entry *)pmalloc(nwarehouse * sizeof(warehouse_entry));
+	district = (district_entry *)pmalloc(num_districts * sizeof(district_entry));
+	customer = (customer_entry *)pmalloc(num_customers * sizeof(customer_entry));
+	stock = (stock_entry *)pmalloc(num_stocks * sizeof(stock_entry));
+	item = (item_entry *)pmalloc(nitems * sizeof(item_entry));
+	history = (history_entry *)pmalloc(num_histories * sizeof(history_entry));
+	order = (order_entry *)pmalloc(num_orders * sizeof(order_entry));
+	new_order = (new_order_entry *)pmalloc(num_new_orders * sizeof(new_order_entry));
+	order_line = (order_line_entry *)pmalloc(num_order_lines * sizeof(order_line_entry));
 
-	backUpInst = (struct backUpLog**) aligned_malloc(64, nthreads * sizeof(struct backUpLog));
+	backUpInst = (struct backUpLog**) pmalloc(nthreads * sizeof(struct backUpLog));
+	for(uint64_t i = 0; i < nthreads; i++)
+	{
+		backUpInst[i] = (struct backUpLog*) pmalloc(sizeof(struct backUpLog));
+	}
 
 	for (int i = 0; i < 3000; i++)
 	{
@@ -90,6 +94,7 @@ void TPCC_DB::deinitialize()
 
 TPCC_DB::~TPCC_DB()
 {
+#ifdef _VOLATILE_TPCC_DB
 	free(warehouse);
 	free(district);
 	free(customer);
@@ -99,6 +104,7 @@ TPCC_DB::~TPCC_DB()
 	free(order);
 	free(new_order);
 	free(order_line);
+#endif
 }
 
 void TPCC_DB::populate_tables()

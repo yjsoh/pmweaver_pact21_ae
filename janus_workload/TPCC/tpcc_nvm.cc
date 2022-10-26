@@ -211,7 +211,7 @@ TPCC_DB **tpcc_db; // array of TPCC_DB, array length == nthreads
 
 void init_db(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
-	*tpcc_db = (TPCC_DB *)aligned_malloc(64, nthreads * sizeof(TPCC_DB));
+	tpcc_db = (TPCC_DB **)pmalloc(nthreads * sizeof(TPCC_DB));
 	for (uint64_t tid = 0; tid < nthreads; tid++)
 	{
 		tpcc_db[tid] = new TPCC_DB();
@@ -226,7 +226,9 @@ void deinit_db(uint64_t nthreads)
 		tpcc_db[tid]->deinitialize();
 		delete tpcc_db[tid];
 	}
+#ifdef _VOLATILE_TPCC_DB
 	free(tpcc_db);
+#endif
 }
 
 uint64_t new_orders(uint64_t tid)
