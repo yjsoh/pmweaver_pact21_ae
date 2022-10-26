@@ -81,6 +81,11 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	}
 }
 
+void TPCC_DB::deinitialize()
+{
+	// TODO
+}
+
 TPCC_DB::~TPCC_DB()
 {
 	free(warehouse);

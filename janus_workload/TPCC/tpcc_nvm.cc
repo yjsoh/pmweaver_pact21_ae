@@ -217,7 +217,7 @@ void init_db(uint64_t nthreads, uint64_t nwarehouse)
 	}
 }
 
-void deinit_db()
+void deinit_db(uint64_t nthreads)
 {
 	for (uint64_t tid = 0; tid < nthreads; tid++)
 	{
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 
 	run(argv, nwarehouse, nitems, nthreads, duration);
 
-	deinit_db();
+	deinit_db(nthreads);
 
 	return 0;
 }

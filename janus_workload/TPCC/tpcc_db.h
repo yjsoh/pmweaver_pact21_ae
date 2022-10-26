@@ -75,6 +75,7 @@ public:
 	~TPCC_DB();
 
 	void initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems);
+	void deinitialize();
 
 	/* Populate table */
 	void populate_tables();
