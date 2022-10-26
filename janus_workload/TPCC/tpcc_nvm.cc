@@ -122,6 +122,7 @@ struct thread_data
 	uint64_t tid;
 	uint64_t ops;
 	uint64_t nops; // if execute exactly nops
+	uint64_t nwarehouse;
 };
 
 /* An operation every thread runs during the execution */
@@ -129,6 +130,7 @@ void *threadTimedRun(void *arg)
 {
 	struct thread_data *tData = (struct thread_data *)arg;
 	uint64_t tid = tData->tid;
+	uint64_t nwarehouse = tData->nwarehouse;
 
 	// Set CPU affinity
 	set_cpu(tid);
@@ -143,7 +145,7 @@ void *threadTimedRun(void *arg)
 	barrier_cross(&init_barrier);
 	barrier_cross(&barrier_global);
 
-	tData->ops = new_orders(tid);
+	tData->ops = new_orders(tid, nwarehouse);
 
 	return NULL;
 }
@@ -153,6 +155,7 @@ void *threadOpRun(void *arg)
 	struct thread_data *tData = (struct thread_data *)arg;
 	uint64_t tid = tData->tid;
 	uint64_t nops = tData->nops;
+	uint64_t nwarehouse = tData->nwarehouse;
 
 	// Set CPU affinity
 	set_cpu(tid);
@@ -167,7 +170,7 @@ void *threadOpRun(void *arg)
 	barrier_cross(&init_barrier);
 	barrier_cross(&barrier_global);
 
-	tData->ops = new_orders_nops(tid, nops);
+	tData->ops = new_orders_nops(tid, nops, nwarehouse);
 
 	return NULL;
 }
@@ -190,6 +193,7 @@ void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, 
 		allThreadsData[i].tid = i;
 		allThreadsData[i].ops = 0;
 		allThreadsData[i].nops = nops;
+		allThreadsData[i].nwarehouse = nwarehouse;
 	}
 	stop = (false);
 
@@ -313,7 +317,7 @@ uint64_t new_orders(uint64_t tid, uint64_t nwarehouse)
 	uint64_t ops = 0;
 	fprintf(stderr, "Running received\n");
 	pthread_mutex_t tmp;
-	pthread_mutex_init(&tpm, NULL);
+	pthread_mutex_init(&tmp, NULL);
 	pthread_mutex_lock(&tmp);
 	while (!stop)
 	{
