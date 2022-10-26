@@ -87,7 +87,7 @@ public:
 	void fill_history_entry(int _h_c_w_id, int _h_c_d_id, int _h_c_id);
 	void fill_order_entry(int _o_w_id, int _o_d_id, int _o_id);
 	void fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, int _o_ol_cnt, long long _o_entry_d);
-	void fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int threadId);
+	void fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int tid);
 	void fill_time(long long &time_slot);
 
 	/* Random related */
@@ -109,9 +109,9 @@ public:
 	void copy_order_line_info(order_line_entry &dest, order_line_entry &source);
 
 	/* Actual Transactions */
-	void new_order_tx(int threadId, int w_id, int d_id, int c_id);
-	void update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int threadId);
-	void update_stock_entry(int threadId, int _w_id, int _i_id, int _d_id, float &amount, int itr);
+	void new_order_tx(int tid, int w_id, int d_id, int c_id);
+	void update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int tid);
+	void update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float &amount, int itr);
 
 	/* Multi-threading */
 	void acquire_locks(int thread_id, queue_t &reqLocks);

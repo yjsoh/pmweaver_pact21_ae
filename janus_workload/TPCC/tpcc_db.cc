@@ -304,7 +304,7 @@ void TPCC_DB::fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, in
 	random_a_string(24, 24, order_line[indx].ol_dist_info);
 }
 
-void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int threadId)
+void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int tid)
 {
 	int indx = (_no_w_id - 1) * 10 * 900 + (_no_d_id - 1) * 900 + (_no_o_id - 2101) % 900;
 	indx = indx < 0 ? -indx : indx;
@@ -448,7 +448,7 @@ void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &sou
 }
 
 /* Transactions*/
-void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
+void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 {
 	int w_indx = (w_id - 1);
 	int d_indx = (w_id - 1) * 10 + (d_id - 1);
@@ -461,7 +461,7 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** district lock id: "<<d_indx<<std::endl;
 	*/
-	int ol_cnt = get_random(threadId, 5, 15);
+	int ol_cnt = get_random(tid, 5, 15);
 	int item_ids[ol_cnt];
 	for (int i = 0; i < ol_cnt; i++)
 	{
@@ -470,7 +470,7 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 		do
 		{
 			match = false;
-			new_item_id = get_random(threadId, 1, NUM_ITEMS);
+			new_item_id = get_random(tid, 1, NUM_ITEMS);
 			for (int j = 0; j < i; j++)
 			{
 				if (new_item_id == item_ids[j])
@@ -496,12 +496,12 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 		*/
 		/*
 		if(TPCC_DEBUG)
-		  // std::cout<<"**NOTx** item lock id: "<<item_lock_id<<" thread id: "<<threadId<<std::endl;
+		  // std::cout<<"**NOTx** item lock id: "<<item_lock_id<<" thread id: "<<tid<<std::endl;
 		*/
 	}
 	// Korakit
 	// remove MT stuff
-	// acquire_locks(threadId, reqLocks);
+	// acquire_locks(tid, reqLocks);
 	/*
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** finished start tx: "<<std::endl;
@@ -545,14 +545,14 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	flush_caches((void *)&district[d_indx].d_next_o_id, (unsigned)sizeof(district[d_indx].d_next_o_id));
 	s_fence();
 
-	fill_new_order_entry(w_id, d_id, d_o_id, threadId);
+	fill_new_order_entry(w_id, d_id, d_o_id, tid);
 
-	update_order_entry(w_id, d_id, d_o_id, c_id, ol_cnt, threadId);
+	update_order_entry(w_id, d_id, d_o_id, c_id, ol_cnt, tid);
 
 	float total_amount = 0.0;
 	for (int i = 0; i < ol_cnt; i++)
 	{
-		update_stock_entry(threadId, w_id, item_ids[i], d_id, total_amount, i);
+		update_stock_entry(tid, w_id, item_ids[i], d_id, total_amount, i);
 	}
 
 	// invalidate log entries
@@ -569,12 +569,12 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	*/
 	// Korakit
 	// remove MT stuffs
-	// release_locks(threadId);
+	// release_locks(tid);
 
 	return;
 }
 
-void TPCC_DB::update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int threadId)
+void TPCC_DB::update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int tid)
 {
 	int indx = (_w_id - 1) * 10 * 3000 + (_d_id - 1) * 3000 + (_o_id - 1) % 3000;
 	indx = indx < 0 ? -indx : indx;
@@ -603,13 +603,13 @@ void TPCC_DB::update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, i
 	s_fence();
 }
 
-void TPCC_DB::update_stock_entry(int threadId, int _w_id, int _i_id, int _d_id, float &amount, int itr)
+void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float &amount, int itr)
 {
 	int indx = (_w_id - 1) * NUM_ITEMS + _i_id - 1;
 	indx = indx < 0 ? -indx : indx;
 	indx = indx % (NUM_ITEMS * num_warehouses);
 
-	// int ol_quantity = get_random(threadId, 1, 10);
+	// int ol_quantity = get_random(tid, 1, 10);
 	int ol_quantity = 7;
 	backUpInst.update_stock_entry_indx[itr] = indx;
 	flush_caches((void *)&backUpInst.update_stock_entry_indx[itr], (unsigned)sizeof(backUpInst.update_stock_entry_indx[itr]));
@@ -640,28 +640,28 @@ void TPCC_DB::update_stock_entry(int threadId, int _w_id, int _i_id, int _d_id, 
 }
 
 /* Multi-threading */
-void TPCC_DB::acquire_locks(int threadId, queue_t &requestedLocks)
+void TPCC_DB::acquire_locks(int tid, queue_t &requestedLocks)
 {
 	// Acquire locks in order.
 	int i = -1;
 	while (!requestedLocks.empty())
 	{
 		i = requestedLocks.front();
-		perTxLocks[threadId].push(i);
+		perTxLocks[tid].push(i);
 		requestedLocks.pop();
 		pthread_mutex_lock(&locks[i]);
 	}
 }
 
-void TPCC_DB::release_locks(int threadId)
+void TPCC_DB::release_locks(int tid)
 {
 
 	// Release locks in order
 	int i = -1;
-	while (!perTxLocks[threadId].empty())
+	while (!perTxLocks[tid].empty())
 	{
-		i = perTxLocks[threadId].front();
-		perTxLocks[threadId].pop();
+		i = perTxLocks[tid].front();
+		perTxLocks[tid].pop();
 		pthread_mutex_unlock(&locks[i]);
 	}
 }
