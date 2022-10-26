@@ -12,7 +12,7 @@ This file defines the various functions of the tpcc database
 #include <cstring>	 // For memcpy
 #include <algorithm> // for sort
 #include "tpcc_db.h"
-#include "../common/common.h"
+#include "common.h"
 //#define NEW_ORDER_LOCK 10;
 #define TPCC_DEBUG 0
 //#define NUM_ITEMS 1000
