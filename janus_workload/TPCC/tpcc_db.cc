@@ -470,7 +470,7 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	  // std::cout<<"**NOTx** district lock id: "<<d_indx<<std::endl;
 	*/
 	int ol_cnt = get_random(tid, 5, 15);
-	int item_ids[ol_cnt];
+	int item_ids[15];
 	for (int i = 0; i < ol_cnt; i++)
 	{
 		int new_item_id;
