@@ -45,20 +45,25 @@ void deinit_db()
 	free(tpcc_db);
 }
 
-void *new_orders(void *arguments)
+std::atomic<bool> stop;
+uint64_t new_orders(uint64_t tid)
 {
-	int thread_id = *((int *)arguments);
-	for (int i = 0; i < NUM_ORDERS / NUM_THREADS; i++)
+	uint64_t ops = 0;
+	fprintf(stderr, "Running received\n");
+	while (!stop)
 	{
 		int w_id = 1;
 
-		int d_id = tpcc_db[thread_id]->get_random(thread_id, 1, 10);
-		int c_id = tpcc_db[thread_id]->get_random(thread_id, 1, 3000);
+		int d_id = tpcc_db[tid]->get_random(tid, 1, 10);
+		int c_id = tpcc_db[tid]->get_random(tid, 1, 3000);
 
-		tpcc_db[thread_id]->new_order_tx(thread_id, w_id, d_id, c_id);
+		tpcc_db[tid]->new_order_tx(tid, w_id, d_id, c_id);
+
+		ops++;
 	}
+	fprintf(stderr, "Stop received. Returning: %lu\n", ops);
 
-	return NULL;
+	return ops;
 }
 
 int main(int argc, char *argv[])
