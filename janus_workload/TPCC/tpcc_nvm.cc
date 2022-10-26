@@ -207,25 +207,19 @@ void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, 
 #define NUM_WAREHOUSES 1
 #define NUM_ITEMS 100 // 10000
 #define NUM_LOCKS NUM_WAREHOUSES * 10 + NUM_WAREHOUSES *NUM_ITEMS
-TPCC_DB **tpcc_db; // array of TPCC_DB, array length == nthreads
+TPCC_DB *tpcc_db; // array of TPCC_DB, array length == nthreads
 
 void init_db(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
-	tpcc_db = (TPCC_DB **)pmalloc(nthreads * sizeof(TPCC_DB));
-	for (uint64_t tid = 0; tid < nthreads; tid++)
-	{
-		tpcc_db[tid] = new TPCC_DB();
-		tpcc_db[tid]->initialize(nthreads, nwarehouse, nitems);
-	}
+	tpcc_db = new TPCC_DB(nwarehouse, nitems);
+	tpcc_db->initialize(nthreads, nwarehouse, nitems);
+	tpcc_db->populate_tables();
 }
 
 void deinit_db(uint64_t nthreads)
 {
-	for (uint64_t tid = 0; tid < nthreads; tid++)
-	{
-		tpcc_db[tid]->deinitialize();
-		delete tpcc_db[tid];
-	}
+	tpcc_db->deinitialize();
+	delete tpcc_db;
 #ifdef _VOLATILE_TPCC_DB
 	free(tpcc_db);
 #endif
