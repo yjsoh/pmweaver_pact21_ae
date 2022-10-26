@@ -115,7 +115,7 @@ static inline void set_cpu(int cpu)
 
 struct thread_data
 {
-	uint32_t tid;
+	uint64_t tid;
 	uint64_t ops;
 };
 
@@ -123,7 +123,7 @@ struct thread_data
 void *threadRun(void *arg)
 {
 	struct thread_data *tData = (struct thread_data *)arg;
-	uint32_t tid = tData->tid;
+	uint64_t tid = tData->tid;
 	uint64_t ops = tData->ops;
 	uint64_t from = tData->from;
 	uint64_t to = tData->to;
