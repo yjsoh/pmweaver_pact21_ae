@@ -49,6 +49,8 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	new_order = (new_order_entry *)aligned_malloc(64, num_new_orders * sizeof(new_order_entry));
 	order_line = (order_line_entry *)aligned_malloc(64, num_order_lines * sizeof(order_line_entry));
 
+	backUpInst = (struct backUpLog**) aligned_malloc(64, nthreads * sizeof(struct backUpLog));
+
 	for (int i = 0; i < 3000; i++)
 	{
 		random_3000[i] = i;
@@ -312,13 +314,13 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	// Korakitg
 	// do backup
 	// std::cout << "Using index: " << indx << std::endl;
-	backUpInst.fill_new_order_entry_indx = indx;
-	flush_caches((void *)&backUpInst.fill_new_order_entry_indx, (unsigned)sizeof(backUpInst.fill_new_order_entry_indx));
-	backUpInst.new_order_entry_back = new_order[indx];
-	flush_caches((void *)&backUpInst.new_order_entry_back, (unsigned)sizeof(backUpInst.new_order_entry_back));
+	backUpInst[tid]->fill_new_order_entry_indx = indx;
+	flush_caches((void *)&backUpInst[tid]->fill_new_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->fill_new_order_entry_indx));
+	backUpInst[tid]->new_order_entry_back = new_order[indx];
+	flush_caches((void *)&backUpInst[tid]->new_order_entry_back, (unsigned)sizeof(backUpInst[tid]->new_order_entry_back));
 	s_fence();
-	backUpInst.fill_new_order_entry_back_valid = 1;
-	flush_caches(&backUpInst.fill_new_order_entry_back_valid, sizeof(backUpInst.fill_new_order_entry_back_valid));
+	backUpInst[tid]->fill_new_order_entry_back_valid = 1;
+	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
 	s_fence();
 	// just flush the cache
 	new_order[indx].no_o_id = _no_o_id;
@@ -523,31 +525,29 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	//   s_fence();
 
 	// prepare backup log
-	backUpInst.district_back_valid = 0;
-	flush_caches(&backUpInst.district_back_valid, sizeof(backUpInst.district_back_valid));
-	backUpInst.fill_new_order_entry_back_valid = 0;
-	flush_caches(&backUpInst.fill_new_order_entry_back_valid, sizeof(backUpInst.fill_new_order_entry_back_valid));
-	backUpInst.update_order_entry_back_valid = 0;
-	flush_caches(&backUpInst.update_order_entry_back_valid, sizeof(backUpInst.update_order_entry_back_valid));
-	backUpInst.update_stock_entry_num_valid = 0;
-	flush_caches(&backUpInst.update_stock_entry_num_valid, sizeof(backUpInst.update_stock_entry_num_valid));
+	backUpInst[tid]->district_back_valid = 0;
+	backUpInst[tid]->fill_new_order_entry_back_valid = 0;
+	backUpInst[tid]->update_order_entry_back_valid = 0;
+	backUpInst[tid]->update_stock_entry_num_valid = 0;
+	flush_caches(&backUpInst[tid]->district_back_valid, sizeof(backUpInst[tid]->district_back_valid));
+	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
+	flush_caches(&backUpInst[tid]->update_order_entry_back_valid, sizeof(backUpInst[tid]->update_order_entry_back_valid));
+	flush_caches(&backUpInst[tid]->update_stock_entry_num_valid, sizeof(backUpInst[tid]->update_stock_entry_num_valid));
 	s_fence();
-	backUpInst.log_valid = 1;
-	flush_caches((void *)&backUpInst.log_valid, (unsigned)sizeof(backUpInst.log_valid));
+	backUpInst[tid]->log_valid = 1;
+	flush_caches((void *)&backUpInst[tid]->log_valid, (unsigned)sizeof(backUpInst[tid]->log_valid));
 	s_fence();
 
 	// do backup
-	backUpInst.district_back = district[d_indx];
-	flush_caches(&backUpInst.district_back, sizeof(backUpInst.district_back));
-
+	copy_district_info(backUpInst[tid]->district_back, district[d_indx]);
 	district[d_indx].d_next_o_id++;
-	// flush district[d_indx].d_next_o_id++;
+	flush_caches(&backUpInst[tid]->district_back, sizeof(backUpInst[tid]->district_back));
 	flush_caches((void *)&district[d_indx].d_next_o_id, (unsigned)sizeof(district[d_indx].d_next_o_id));
 	s_fence();
 
 	fill_new_order_entry(w_id, d_id, d_o_id, tid);
 
-	update_order_entry(w_id, d_id, d_o_id, c_id, ol_cnt, tid);
+	update_order_entry(tid, w_id, d_id, d_o_id, c_id, ol_cnt);
 
 	float total_amount = 0.0;
 	for (int i = 0; i < ol_cnt; i++)
@@ -556,8 +556,8 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	}
 
 	// invalidate log entries
-	backUpInst.log_valid = 0;
-	flush_caches((void *)&backUpInst.log_valid, (unsigned)sizeof(backUpInst.log_valid));
+	backUpInst[tid]->log_valid = 0;
+	flush_caches((void *)&backUpInst[tid]->log_valid, (unsigned)sizeof(backUpInst[tid]->log_valid));
 	s_fence();
 
 	// Korakit
@@ -582,14 +582,14 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 
 	// Korakit
 	// create backup
-	backUpInst.update_order_entry_indx = indx;
-	backUpInst.order_entry_back = order[indx];
-	flush_caches((void *)&backUpInst.update_order_entry_indx, (unsigned)sizeof(backUpInst.update_order_entry_indx));
-	flush_caches((void *)&backUpInst.order_entry_back, (unsigned)sizeof(backUpInst.order_entry_back));
+	backUpInst[tid]->update_order_entry_indx = indx;
+	backUpInst[tid]->order_entry_back = order[indx];
+	flush_caches((void *)&backUpInst[tid]->update_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->update_order_entry_indx));
+	flush_caches((void *)&backUpInst[tid]->order_entry_back, (unsigned)sizeof(backUpInst[tid]->order_entry_back));
 	s_fence();
 
-	backUpInst.update_order_entry_back_valid = 1;
-	flush_caches((void *)&backUpInst.update_order_entry_back_valid, sizeof(backUpInst.update_order_entry_back_valid));
+	backUpInst[tid]->update_order_entry_back_valid = 1;
+	flush_caches((void *)&backUpInst[tid]->update_order_entry_back_valid, sizeof(backUpInst[tid]->update_order_entry_back_valid));
 	s_fence();
 
 	order[indx].o_id = _o_id;
@@ -611,12 +611,12 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 
 	// int ol_quantity = get_random(tid, 1, 10);
 	int ol_quantity = 7;
-	backUpInst.update_stock_entry_indx[itr] = indx;
-	flush_caches((void *)&backUpInst.update_stock_entry_indx[itr], (unsigned)sizeof(backUpInst.update_stock_entry_indx[itr]));
-	backUpInst.stock_entry_back[itr] = stock[indx];
-	flush_caches((void *)&backUpInst.stock_entry_back[itr], (unsigned)sizeof(backUpInst.stock_entry_back[itr]));
-	backUpInst.update_stock_entry_num_valid = itr + 1;
-	flush_caches((void *)&backUpInst.update_stock_entry_num_valid, (unsigned)sizeof(backUpInst.update_stock_entry_num_valid));
+	backUpInst[tid]->update_stock_entry_indx[itr] = indx;
+	flush_caches((void *)&backUpInst[tid]->update_stock_entry_indx[itr], (unsigned)sizeof(backUpInst[tid]->update_stock_entry_indx[itr]));
+	backUpInst[tid]->stock_entry_back[itr] = stock[indx];
+	flush_caches((void *)&backUpInst[tid]->stock_entry_back[itr], (unsigned)sizeof(backUpInst[tid]->stock_entry_back[itr]));
+	backUpInst[tid]->update_stock_entry_num_valid = itr + 1;
+	flush_caches((void *)&backUpInst[tid]->update_stock_entry_num_valid, (unsigned)sizeof(backUpInst[tid]->update_stock_entry_num_valid));
 	s_fence();
 
 	if (stock[indx].s_quantity - ol_quantity > 10)
