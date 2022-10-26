@@ -333,8 +333,9 @@ void TPCC_DB::fill_time(long long &time_slot)
 /* Random related */
 unsigned TPCC_DB::fastrand()
 {
-	g_seed = (179423891 * g_seed + 2038073749);
-	return (g_seed >> 8) & 0x7FFFFFFF;
+	// g_seed = (179423891 * g_seed + 2038073749);
+	// return (g_seed >> 8) & 0x7FFFFFFF;
+	return rand();
 }
 
 int TPCC_DB::rand_local(int min, int max)
