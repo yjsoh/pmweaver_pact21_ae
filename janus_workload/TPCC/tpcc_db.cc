@@ -406,19 +406,19 @@ void TPCC_DB::random_zip(char *string_ptr)
 	}
 }
 
-unsigned long TPCC_DB::get_random(int thread_id)
+unsigned long TPCC_DB::get_random(int tid)
 {
 	unsigned long tmp;
-	tmp = rndm_seeds[thread_id * 10] = (rndm_seeds[thread_id * 10] * 16807) % 2147483647;
+	tmp = rndm_seeds[tid * 10] = (rndm_seeds[tid * 10] * 16807) % 2147483647;
 	// return rand()%(2^32-1);
 	return tmp;
 }
 
-unsigned long TPCC_DB::get_random(int thread_id, int min, int max)
+unsigned long TPCC_DB::get_random(int tid, int min, int max)
 {
 	unsigned long tmp;
 	// return min+(rand()%(max-min+1));
-	tmp = rndm_seeds[thread_id * 10] = (rndm_seeds[thread_id * 10] * 16807) % 2147483647;
+	tmp = rndm_seeds[tid * 10] = (rndm_seeds[tid * 10] * 16807) % 2147483647;
 	return min + (tmp % (max - min + 1));
 	// return tmp
 }
@@ -672,7 +672,7 @@ void TPCC_DB::release_locks(int tid)
 }
 
 /* Debug Related */
-void TPCC_DB::printStackPointer(int *sp, int thread_id)
+void TPCC_DB::printStackPointer(int *sp, int tid)
 {
 	std::cout << "Stack Heap: " << sp << std::endl;
 }
