@@ -59,20 +59,12 @@ int main(int argc, char *argv[])
 	pthread_t threads[NUM_THREADS];
 	int id[NUM_THREADS];
 	std::cout << "Done with init()" << std::endl;
-	//  return 0;
-#ifdef GEM5
-	m5_work_begin(atoi(argv[1]), 0);
-#endif
-	//  TraceBegin();
+
 	for (int i = 0; i < NUM_THREADS; i++)
 	{
 		id[i] = i;
 		new_orders((void *)&id[i]);
 	}
-	//  TraceEnd();
-#ifdef GEM5
-	m5_work_end(atoi(argv[1]), 0);
-#endif
 
 	return 0;
 }
