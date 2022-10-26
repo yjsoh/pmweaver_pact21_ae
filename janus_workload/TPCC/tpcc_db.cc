@@ -444,32 +444,32 @@ unsigned long TPCC_DB::get_random(int tid, int min, int max)
 /* Copy Wrappers */
 void TPCC_DB::copy_district_info(district_entry &dest, district_entry &source)
 {
-	std::memcpy(&dest, &source, sizeof(district_entry));
+	memcpy(&dest, &source, sizeof(district_entry));
 }
 
 void TPCC_DB::copy_customer_info(customer_entry &dest, customer_entry &source)
 {
-	std::memcpy(&dest, &source, sizeof(customer_entry));
+	memcpy(&dest, &source, sizeof(customer_entry));
 }
 
 void TPCC_DB::copy_new_order_info(new_order_entry &dest, new_order_entry &source)
 {
-	std::memcpy(&dest, &source, sizeof(new_order_entry));
+	memcpy(&dest, &source, sizeof(new_order_entry));
 }
 
 void TPCC_DB::copy_order_info(order_entry &dest, order_entry &source)
 {
-	std::memcpy(&dest, &source, sizeof(order_entry));
+	memcpy(&dest, &source, sizeof(order_entry));
 }
 
 void TPCC_DB::copy_stock_info(stock_entry &dest, stock_entry &source)
 {
-	std::memcpy(&dest, &source, sizeof(stock_entry));
+	memcpy(&dest, &source, sizeof(stock_entry));
 }
 
 void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &source)
 {
-	std::memcpy(&dest, &source, sizeof(order_line_entry));
+	memcpy(&dest, &source, sizeof(order_line_entry));
 }
 
 /* Transactions*/
