@@ -622,10 +622,9 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 
 void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt)
 {
-	int indx = (_w_id - 1) * 10 * 3000 + (_d_id - 1) * 3000 + (_o_id - 1) % 3000;
-	indx = indx < 0 ? -indx : indx;
-	indx = indx % (num_warehouses * 10 * 900);
-
+	int indx = (_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT + (_d_id - 1) * N_ORDER_PER_DISTRICT + (_o_id - 1) % N_ORDER_PER_DISTRICT;
+	// indx = indx < 0 ? -indx : indx;
+	// indx = indx % (num_warehouses * 10 * 900);
 	// Korakit
 	// create backup
 #ifdef _ENABLE_LOGGING
@@ -641,31 +640,32 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 #endif
 
 	order[indx].o_id = _o_id;
-	order[indx].o_carrier_id = 0;
-	order[indx].o_all_local = 1;
-	order[indx].o_ol_cnt = _ol_cnt;
+	order[indx].o_d_id = _d_id;
+	order[indx].o_w_id = _w_id;
 	order[indx].o_c_id = _c_id;
-
 	fill_time(order[indx].o_entry_d);
+	order[indx].o_carrier_id = 0;
+	order[indx].o_ol_cnt = _ol_cnt;
+	order[indx].o_all_local = 1;
 	flush_caches((void *)&order[indx], (unsigned)sizeof(order[indx]));
 	s_fence();
 }
 
 void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float &amount, int itr)
 {
-	int indx = (_w_id - 1) * NUM_ITEMS + _i_id - 1;
-	indx = indx < 0 ? -indx : indx;
-	indx = indx % (NUM_ITEMS * num_warehouses);
+	int indx = (_w_id - 1) * num_items + _i_id - 1;
 
 	// int ol_quantity = get_random(tid, 1, 10);
 	int ol_quantity = 7;
+#ifdef _ENABLE_LOGGING
 	backUpInst[tid]->update_stock_entry_indx[itr] = indx;
+	copy_stock_info(backUpInst[tid]->stock_entry_back[itr], stock[indx]);
+	backUpInst[tid]->update_stock_entry_num_valid |= (1UL << (itr + 1)); // bitset
 	flush_caches((void *)&backUpInst[tid]->update_stock_entry_indx[itr], (unsigned)sizeof(backUpInst[tid]->update_stock_entry_indx[itr]));
-	backUpInst[tid]->stock_entry_back[itr] = stock[indx];
 	flush_caches((void *)&backUpInst[tid]->stock_entry_back[itr], (unsigned)sizeof(backUpInst[tid]->stock_entry_back[itr]));
-	backUpInst[tid]->update_stock_entry_num_valid = itr + 1;
 	flush_caches((void *)&backUpInst[tid]->update_stock_entry_num_valid, (unsigned)sizeof(backUpInst[tid]->update_stock_entry_num_valid));
 	s_fence();
+#endif
 
 	if (stock[indx].s_quantity - ol_quantity > 10)
 	{
