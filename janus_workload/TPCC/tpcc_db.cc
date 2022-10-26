@@ -15,10 +15,10 @@ This file defines the various functions of the tpcc database
 #include "common.h"
 //#define NEW_ORDER_LOCK 10;
 #define TPCC_DEBUG 0
-//#define NUM_ITEMS 1000
-#define NUM_ITEMS 10000
 #define NUM_RNDM_SEEDS 1280
-TPCC_DB::TPCC_DB()
+
+
+TPCC_DB::TPCC_DB(uint64_t nwarehouse, uint64_t nitems) : num_warehouses(nwarehouse), num_items(nitems)
 {
 	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	uint64_t district_back_valid = 0UL;

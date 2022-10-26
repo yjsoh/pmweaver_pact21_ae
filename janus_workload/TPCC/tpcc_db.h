@@ -71,7 +71,7 @@ private:
 	unsigned g_seed;
 
 public:
-	TPCC_DB();
+	TPCC_DB(uint64_t nwarehouse, uint64_t nitems);
 	~TPCC_DB();
 
 	void initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems);
