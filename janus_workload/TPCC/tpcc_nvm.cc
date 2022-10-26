@@ -20,8 +20,8 @@ This file models the TPCC benchmark.
 #include "tpcc_db.h"
 
 std::atomic<bool> stop;
-uint64_t new_orders(uint64_t tid);
-uint64_t new_orders_nops(uint64_t tid, uint64_t nops);
+uint64_t new_orders(uint64_t tid, uint64_t nwarehouse);
+uint64_t new_orders_nops(uint64_t tid, uint64_t nwarehouse, uint64_t nops);
 
 /*
  *   File: barrier.h
@@ -249,14 +249,14 @@ void deinit_db(uint64_t nthreads)
 #endif
 }
 
-uint64_t new_orders_nops(uint64_t tid, uint64_t nops)
+uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse)
 {
 	int w_id, d_id, c_id;
 	uint64_t ops = 0;
 	fprintf(stderr, "Execution Started\n");
 	for(uint64_t i = 0; i < nops; i++)
 	{
-		w_id = tpcc_db->get_random(tid, 1, N_WAREHOUSE);
+		w_id = tpcc_db->get_random(tid, 1, nwarehouse);
 		d_id = tpcc_db->get_random(tid, 1, N_DISTRICT_PER_WAREHOUSE);
 		c_id = tpcc_db->get_random(tid, 1, N_CUSTOMER_PER_DISTRICT);
 
@@ -269,18 +269,18 @@ uint64_t new_orders_nops(uint64_t tid, uint64_t nops)
 	return ops;
 }
 
-uint64_t new_orders(uint64_t tid)
+uint64_t new_orders(uint64_t tid, uint64_t nwarehouse)
 {
+	int w_id, d_id, c_id;
 	uint64_t ops = 0;
 	fprintf(stderr, "Running received\n");
 	while (!stop)
 	{
-		int w_id = 1;
+		w_id = tpcc_db->get_random(tid, 1, nwarehouse);
+		d_id = tpcc_db->get_random(tid, 1, N_DISTRICT_PER_WAREHOUSE);
+		c_id = tpcc_db->get_random(tid, 1, N_CUSTOMER_PER_DISTRICT);
 
-		int d_id = tpcc_db[tid]->get_random(tid, 1, 10);
-		int c_id = tpcc_db[tid]->get_random(tid, 1, 3000);
-
-		tpcc_db[tid]->new_order_tx(tid, w_id, d_id, c_id);
+		tpcc_db->new_order_tx(tid, w_id, d_id, c_id);
 
 		ops++;
 	}
