@@ -331,6 +331,12 @@ void TPCC_DB::fill_time(long long &time_slot)
 }
 
 /* Random related */
+unsigned TPCC_DB::fastrand()
+{
+	g_seed = (179423891 * g_seed + 2038073749);
+	return (g_seed >> 8) & 0x7FFFFFFF;
+}
+
 int TPCC_DB::rand_local(int min, int max)
 {
 	return (min + (fastrand() % (max - min + 1)));
@@ -385,12 +391,6 @@ void TPCC_DB::random_zip(char *string_ptr)
 	{
 		string_ptr[i] = '1';
 	}
-}
-
-unsigned TPCC_DB::fastrand()
-{
-	g_seed = (179423891 * g_seed + 2038073749);
-	return (g_seed >> 8) & 0x7FFFFFFF;
 }
 
 unsigned long TPCC_DB::get_random(int thread_id)
