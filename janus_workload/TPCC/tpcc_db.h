@@ -74,7 +74,8 @@ public:
 	TPCC_DB();
 	~TPCC_DB();
 
-	void initialize(uint64_t nthreads, uint64_t nwarehouse);
+	void initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems);
+
 	void populate_tables();
 	void fill_item_entry(int _i_id);
 	void fill_warehouse_entry(int _w_id);
@@ -86,14 +87,15 @@ public:
 	void fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, int _o_ol_cnt, long long _o_entry_d);
 	void fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int threadId);
 
+	int rand_local(int min, int max);
 	void random_a_string(int min, int max, char *string_ptr);
-	void random_n_string(int min, int max, char *string_ptr);
 	void random_a_original_string(int min, int max, int probability, char *string_ptr);
+	void random_n_string(int min, int max, char *string_ptr);
 	void random_zip(char *string_ptr);
 	void fill_time(long long &time_slot);
-	int rand_local(int min, int max);
-
-	void new_order_tx(int threadId, int w_id, int d_id, int c_id);
+	unsigned fastrand();
+	unsigned long get_random(int thread_id, int min, int max);
+	unsigned long get_random(int thread_id);
 
 	void copy_district_info(district_entry &dest, district_entry &source);
 	void copy_customer_info(customer_entry &dest, customer_entry &source);
@@ -104,13 +106,9 @@ public:
 
 	void update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int threadId);
 	void update_stock_entry(int threadId, int _w_id, int _i_id, int _d_id, float &amount, int itr);
-
-	unsigned long get_random(int thread_id, int min, int max);
-	unsigned long get_random(int thread_id);
+	void new_order_tx(int threadId, int w_id, int d_id, int c_id);
 
 	void printStackPointer(int *sp, int thread_id);
-
 	void acquire_locks(int thread_id, queue_t &reqLocks);
 	void release_locks(int thread_id);
-	unsigned fastrand();
 };

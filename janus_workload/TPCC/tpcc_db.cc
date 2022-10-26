@@ -29,19 +29,25 @@ TPCC_DB::TPCC_DB()
 	g_seed = 1312515;
 }
 
-unsigned TPCC_DB::fastrand()
+void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
-	g_seed = (179423891 * g_seed + 2038073749);
-	return (g_seed >> 8) & 0x7FFFFFFF;
-}
+	uint64_t num_districts = 10 * nwarehouse;
+	uint64_t num_customers = 3000 * num_districts;
+	uint64_t num_stocks = nitems * nwarehouse;
+	uint64_t num_histories = num_customers;
+	uint64_t num_orders = 3000 * num_districts;
+	uint64_t num_order_lines = 15 * num_orders; // Max possible, average is 10*num_orders
+	uint64_t num_new_orders = 900 * num_districts;
 
-void TPCC_DB::initialize(int numThreads, int _num_warehouses)
-{
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
-	num_warehouses = _num_warehouses;
-	int num_districts = 10 * num_warehouses;
-	int num_customers = 3000 * num_districts;
-	int num_stocks = NUM_ITEMS * num_warehouses;
+	warehouse = (warehouse_entry *)aligned_malloc(64, nwarehouse * sizeof(warehouse_entry));
+	district = (district_entry *)aligned_malloc(64, num_districts * sizeof(district_entry));
+	customer = (customer_entry *)aligned_malloc(64, num_customers * sizeof(customer_entry));
+	stock = (stock_entry *)aligned_malloc(64, num_stocks * sizeof(stock_entry));
+	item = (item_entry *)aligned_malloc(64, nitems * sizeof(item_entry));
+	history = (history_entry *)aligned_malloc(64, num_histories * sizeof(history_entry));
+	order = (order_entry *)aligned_malloc(64, num_orders * sizeof(order_entry));
+	new_order = (new_order_entry *)aligned_malloc(64, num_new_orders * sizeof(new_order_entry));
+	order_line = (order_line_entry *)aligned_malloc(64, num_order_lines * sizeof(order_line_entry));
 
 	for (int i = 0; i < 3000; i++)
 	{
@@ -67,56 +73,16 @@ void TPCC_DB::initialize(int numThreads, int _num_warehouses)
 		pthread_mutex_init(&locks[i],NULL);
 	}
 	*/
-	// Korakit
-	// info removed
-	//  // std::cout<<"Allocating tables"<<std::endl;
-
-	warehouse = (warehouse_entry *)aligned_malloc(64, num_warehouses * sizeof(warehouse_entry));
-	district = (district_entry *)aligned_malloc(64, num_districts * sizeof(district_entry));
-	customer = (customer_entry *)aligned_malloc(64, num_customers * sizeof(customer_entry));
-	stock = (stock_entry *)aligned_malloc(64, num_stocks * sizeof(stock_entry));
-
-	int num_items = NUM_ITEMS;
-	item = (item_entry *)aligned_malloc(64, num_items * sizeof(item_entry));
-
-	int num_histories = num_customers;
-	int num_orders = 3000 * num_districts;
-	int num_order_lines = 15 * num_orders; // Max possible, average is 10*num_orders
-	int num_new_orders = 900 * num_districts;
-
-	history = (history_entry *)aligned_malloc(64, num_histories * sizeof(history_entry));
-
-	order = (order_entry *)aligned_malloc(64, num_orders * sizeof(order_entry));
-	new_order = (new_order_entry *)aligned_malloc(64, num_new_orders * sizeof(new_order_entry));
-	order_line = (order_line_entry *)aligned_malloc(64, num_order_lines * sizeof(order_line_entry));
-
 	rndm_seeds = new unsigned long[NUM_RNDM_SEEDS];
 	for (int i = 0; i < NUM_RNDM_SEEDS; i++)
 	{
 		srand(i);
 		rndm_seeds[i] = rand_local(1, NUM_RNDM_SEEDS * 10);
 	}
-
-	// Korakit
-	// info removed
-	/*
-	  // std::cout<<"finished allocating tables"<<std::endl;
-
-	  // std::cout<<"warehouse_entry: "<<sizeof(warehouse_entry)<<std::endl;
-	  // std::cout<<"district_entry: "<<sizeof(district_entry)<<std::endl;
-	  // std::cout<<"customer_entry: "<<sizeof(customer_entry)<<std::endl;
-	  // std::cout<<"stock_entry: "<<sizeof(stock_entry)<<std::endl;
-	  // std::cout<<"item_entry: "<<sizeof(item_entry)<<std::endl;
-	  // std::cout<<"history_entry: "<<sizeof(history_entry)<<std::endl;
-	  // std::cout<<"order_entry: "<<sizeof(order_entry)<<std::endl;
-	  // std::cout<<"new_order_entry: "<<sizeof(new_order_entry)<<std::endl;
-	  // std::cout<<"order_line_entry: "<<sizeof(order_line_entry)<<std::endl;
-	*/
 }
 
 TPCC_DB::~TPCC_DB()
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	free(warehouse);
 	free(district);
 	free(customer);
@@ -163,35 +129,8 @@ void TPCC_DB::populate_tables()
 	}
 }
 
-// Korakit
-// remove MT stuff
-/*
-void TPCC_DB::acquire_locks(int threadId, queue_t &requestedLocks) {
-  // Acquire locks in order.
-  int i = -1;
-  while(!requestedLocks.empty()) {
-	i = requestedLocks.front();
-	perTxLocks[threadId].push(i);
-	requestedLocks.pop();
-	pthread_mutex_lock(&locks[i]);
-  }
-}
-
-void TPCC_DB::release_locks(int threadId) {
-
-  // Release locks in order
-  int i = -1;
-  while(!perTxLocks[threadId].empty()) {
-	i = perTxLocks[threadId].front();
-	perTxLocks[threadId].pop();
-	pthread_mutex_unlock(&locks[i]);
-  }
-}
-*/
-
 void TPCC_DB::fill_item_entry(int _i_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_i_id - 1);
 	item[indx].i_id = _i_id;
 	item[indx].i_im_id = rand_local(1, NUM_ITEMS);
@@ -202,7 +141,6 @@ void TPCC_DB::fill_item_entry(int _i_id)
 
 void TPCC_DB::fill_warehouse_entry(int _w_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_w_id - 1);
 	warehouse[indx].w_id = _w_id;
 	random_a_string(6, 10, warehouse[indx].w_name);
@@ -217,7 +155,6 @@ void TPCC_DB::fill_warehouse_entry(int _w_id)
 
 void TPCC_DB::fill_stock_entry(int _s_w_id, int _s_i_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	//// std::cout<<"entered fill stock entry: "<<_s_w_id<<", "<<_s_i_id<<std::endl;
 	int indx = (_s_w_id - 1) * NUM_ITEMS + (_s_i_id - 1);
 	stock[indx].s_i_id = _s_i_id;
@@ -258,7 +195,6 @@ void TPCC_DB::fill_stock_entry(int _s_w_id, int _s_i_id)
 
 void TPCC_DB::fill_district_entry(int _d_w_id, int _d_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_d_w_id - 1) * 10 + (_d_id - 1);
 	district[indx].d_id = _d_id;
 	district[indx].d_w_id = _d_w_id;
@@ -275,7 +211,6 @@ void TPCC_DB::fill_district_entry(int _d_w_id, int _d_id)
 
 void TPCC_DB::fill_customer_entry(int _c_w_id, int _c_d_id, int _c_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_c_w_id - 1) * 10 * 3000 + (_c_d_id - 1) * 3000 + (_c_id - 1);
 	customer[indx].c_id = _c_id;
 	customer[indx].c_d_id = _c_d_id;
@@ -312,7 +247,6 @@ void TPCC_DB::fill_customer_entry(int _c_w_id, int _c_d_id, int _c_id)
 
 void TPCC_DB::fill_history_entry(int _h_c_w_id, int _h_c_d_id, int _h_c_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_h_c_w_id - 1) * 10 * 3000 + (_h_c_d_id - 1) * 3000 + (_h_c_id - 1);
 	history[indx].h_c_id = _h_c_id;
 	history[indx].h_c_d_id = _h_c_d_id;
@@ -324,7 +258,6 @@ void TPCC_DB::fill_history_entry(int _h_c_w_id, int _h_c_d_id, int _h_c_id)
 
 void TPCC_DB::fill_order_entry(int _o_w_id, int _o_d_id, int _o_id)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_o_w_id - 1) * 10 * 3000 + (_o_d_id - 1) * 3000 + (_o_id - 1);
 	order[indx].o_id = _o_id;
 	order[indx].o_c_id = random_3000[_o_id];
@@ -345,7 +278,6 @@ void TPCC_DB::fill_order_entry(int _o_w_id, int _o_d_id, int _o_id)
 
 void TPCC_DB::fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, int _o_ol_cnt, long long _o_entry_d)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_ol_w_id - 1) * 10 * 3000 * 15 + (_ol_d_id - 1) * 3000 * 15 + (_ol_o_id - 1) * 15 + _o_ol_cnt;
 	order_line[indx].ol_o_id = _ol_o_id;
 	order_line[indx].ol_d_id = _ol_d_id;
@@ -369,7 +301,6 @@ void TPCC_DB::fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, in
 
 void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int threadId)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_no_w_id - 1) * 10 * 900 + (_no_d_id - 1) * 900 + (_no_o_id - 2101) % 900;
 	indx = indx < 0 ? -indx : indx;
 	indx = indx % (num_warehouses * 10 * 900);
@@ -393,6 +324,7 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	// std::cout << "Done with " << __FUNCTION__ << std::endl;
 }
 
+/* Random related */
 int TPCC_DB::rand_local(int min, int max)
 {
 	return (min + (fastrand() % (max - min + 1)));
@@ -419,19 +351,11 @@ void TPCC_DB::random_a_string(int min, int max, char *string_ptr)
 	}
 	//// std::cout<<"exiting random a string"<<std::endl;
 }
+
 void TPCC_DB::random_a_original_string(int min, int max, int probability, char *string_ptr)
 {
 	// FIXME: use probability and add ORIGINAL
 	random_a_string(min, max, string_ptr);
-}
-
-void TPCC_DB::random_zip(char *string_ptr)
-{
-	random_a_string(4, 4, string_ptr);
-	for (int i = 4; i < 9; i++)
-	{
-		string_ptr[i] = '1';
-	}
 }
 
 void TPCC_DB::random_n_string(int min, int max, char *string_ptr)
@@ -448,12 +372,45 @@ void TPCC_DB::random_n_string(int min, int max, char *string_ptr)
 	}
 }
 
+void TPCC_DB::random_zip(char *string_ptr)
+{
+	random_a_string(4, 4, string_ptr);
+	for (int i = 4; i < 9; i++)
+	{
+		string_ptr[i] = '1';
+	}
+}
+
 void TPCC_DB::fill_time(long long &time_slot)
 {
 	// FIXME: put correct time
 	time_slot = 12112342433241;
 }
 
+unsigned TPCC_DB::fastrand()
+{
+	g_seed = (179423891 * g_seed + 2038073749);
+	return (g_seed >> 8) & 0x7FFFFFFF;
+}
+
+unsigned long TPCC_DB::get_random(int thread_id)
+{
+	unsigned long tmp;
+	tmp = rndm_seeds[thread_id * 10] = (rndm_seeds[thread_id * 10] * 16807) % 2147483647;
+	// return rand()%(2^32-1);
+	return tmp;
+}
+
+unsigned long TPCC_DB::get_random(int thread_id, int min, int max)
+{
+	unsigned long tmp;
+	// return min+(rand()%(max-min+1));
+	tmp = rndm_seeds[thread_id * 10] = (rndm_seeds[thread_id * 10] * 16807) % 2147483647;
+	return min + (tmp % (max - min + 1));
+	// return tmp
+}
+
+/* Copy Wrappers */
 void TPCC_DB::copy_district_info(district_entry &dest, district_entry &source)
 {
 	std::memcpy(&dest, &source, sizeof(district_entry));
@@ -704,23 +661,6 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	// remove MT stuffs
 	// release_locks(threadId);
 	return;
-}
-
-unsigned long TPCC_DB::get_random(int thread_id)
-{
-	unsigned long tmp;
-	tmp = rndm_seeds[thread_id * 10] = (rndm_seeds[thread_id * 10] * 16807) % 2147483647;
-	// return rand()%(2^32-1);
-	return tmp;
-}
-
-unsigned long TPCC_DB::get_random(int thread_id, int min, int max)
-{
-	unsigned long tmp;
-	// return min+(rand()%(max-min+1));
-	tmp = rndm_seeds[thread_id * 10] = (rndm_seeds[thread_id * 10] * 16807) % 2147483647;
-	return min + (tmp % (max - min + 1));
-	// return tmp
 }
 
 // Korakit
