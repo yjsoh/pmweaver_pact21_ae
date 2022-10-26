@@ -571,23 +571,18 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 
 void TPCC_DB::update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int threadId)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_w_id - 1) * 10 * 3000 + (_d_id - 1) * 3000 + (_o_id - 1) % 3000;
 	indx = indx < 0 ? -indx : indx;
 	indx = indx % (num_warehouses * 10 * 900);
-	// OPT((void*)(8), threadId, &backUpInst.order_entry_back, &order[indx], sizeof(order_entry));
-	// OPT_ADDR((void*)(9), threadId, &order[indx], sizeof(order_entry));
 
 	// Korakit
 	// create backup
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
 	backUpInst.update_order_entry_indx = indx;
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
 	backUpInst.order_entry_back = order[indx];
 	flush_caches((void *)&backUpInst.update_order_entry_indx, (unsigned)sizeof(backUpInst.update_order_entry_indx));
 	flush_caches((void *)&backUpInst.order_entry_back, (unsigned)sizeof(backUpInst.order_entry_back));
 	s_fence();
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
+
 	backUpInst.update_order_entry_back_valid = 1;
 	flush_caches((void *)&backUpInst.update_order_entry_back_valid, sizeof(backUpInst.update_order_entry_back_valid));
 	s_fence();
@@ -597,34 +592,28 @@ void TPCC_DB::update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, i
 	order[indx].o_all_local = 1;
 	order[indx].o_ol_cnt = _ol_cnt;
 	order[indx].o_c_id = _c_id;
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
+
 	fill_time(order[indx].o_entry_d);
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
 	flush_caches((void *)&order[indx], (unsigned)sizeof(order[indx]));
 	s_fence();
 }
 
 void TPCC_DB::update_stock_entry(int threadId, int _w_id, int _i_id, int _d_id, float &amount, int itr)
 {
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	int indx = (_w_id - 1) * NUM_ITEMS + _i_id - 1;
 	indx = indx < 0 ? -indx : indx;
 	indx = indx % (NUM_ITEMS * num_warehouses);
-	// std::cout << "using stock index = " << indx << std::endl
+
 	// int ol_quantity = get_random(threadId, 1, 10);
 	int ol_quantity = 7;
-	// OPT_ADDR((void*)(0x20), threadId, &stock[indx], sizeof(stock_entry));
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
 	backUpInst.update_stock_entry_indx[itr] = indx;
 	flush_caches((void *)&backUpInst.update_stock_entry_indx[itr], (unsigned)sizeof(backUpInst.update_stock_entry_indx[itr]));
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
 	backUpInst.stock_entry_back[itr] = stock[indx];
 	flush_caches((void *)&backUpInst.stock_entry_back[itr], (unsigned)sizeof(backUpInst.stock_entry_back[itr]));
-	// fprintf(stdout, "thread=%d, line=%d\n", threadId, __LINE__);
 	backUpInst.update_stock_entry_num_valid = itr + 1;
 	flush_caches((void *)&backUpInst.update_stock_entry_num_valid, (unsigned)sizeof(backUpInst.update_stock_entry_num_valid));
 	s_fence();
-	// fprintf(stdout, "%d\n", __LINE__);
+
 	if (stock[indx].s_quantity - ol_quantity > 10)
 	{
 		stock[indx].s_quantity -= ol_quantity;
@@ -639,7 +628,6 @@ void TPCC_DB::update_stock_entry(int threadId, int _w_id, int _i_id, int _d_id, 
 	stock[indx].s_order_cnt += 1;
 	flush_caches((void *)&stock[indx], (unsigned)sizeof(stock[indx]));
 	s_fence();
-	// fprintf(stdout, "%d\n", __LINE__);
 
 	// Korakit
 	// volatile
