@@ -110,7 +110,7 @@ public:
 
 	/* Actual Transactions */
 	void new_order_tx(int tid, int w_id, int d_id, int c_id);
-	void update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int tid);
+	void update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt);
 	void update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float &amount, int itr);
 
 	/* Multi-threading */

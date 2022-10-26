@@ -574,7 +574,7 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	return;
 }
 
-void TPCC_DB::update_order_entry(int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt, int tid)
+void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt)
 {
 	int indx = (_w_id - 1) * 10 * 3000 + (_d_id - 1) * 3000 + (_o_id - 1) % 3000;
 	indx = indx < 0 ? -indx : indx;
