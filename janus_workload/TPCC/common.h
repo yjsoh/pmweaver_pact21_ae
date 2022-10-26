@@ -18,7 +18,7 @@ const int MMAP_PERSISTENT = 9;
 
 extern "C"
 {
-	void init_pmalloc();
+	void init_pmalloc(size_t size);
 
 	void *mmap_persistent(void *start, size_t length, int prot, int flags, int fd, off_t offset);
 	void *pmalloc(size_t length);

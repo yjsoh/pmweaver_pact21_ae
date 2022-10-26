@@ -8,6 +8,17 @@
 
 void *pmem_base_addr = NULL;
 
+void init_pmalloc(size_t size)
+{
+	pmem_base_addr = pmem_map_file(PMEMFILE, size, PMEM_FILE_CREATE, 0x666, 0, 0);
+	if (pmem_base_addr == NULL)
+	{
+		fprintf(stderr, "[%s] Error %s, %lu", __func__, PMEMFILE, size);
+		perror("pmem_map_file");
+	}
+	assert(pmem_base_addr != nullptr);
+}
+
 void *pmalloc(size_t length)
 {
 	if (pmem_base_addr == NULL)
