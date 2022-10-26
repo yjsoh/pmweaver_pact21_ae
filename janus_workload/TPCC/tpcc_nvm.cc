@@ -14,11 +14,7 @@ This file models the TPCC benchmark.
 #include <sys/time.h>
 #include <string>
 #include <fstream>
-#include "../common/common.h"
-#include "../m5ops.h"
-//#include "/home/smahar/git/transparent_txopt/helper.h"
-//#include "txopt.h"
-
+#include "common.h"
 #include "tpcc_db.h"
 
 #define NUM_ORDERS 100 // 10000000
