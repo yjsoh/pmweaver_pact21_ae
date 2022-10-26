@@ -207,13 +207,13 @@ void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, 
 #define NUM_LOCKS NUM_WAREHOUSES * 10 + NUM_WAREHOUSES *NUM_ITEMS
 TPCC_DB **tpcc_db; // array of TPCC_DB, array length == nthreads
 
-void init_db(uint64_t nthreads, uint64_t nwarehouse)
+void init_db(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
-	*tpcc_db = (TPCC_DB *)aligned_malloc(64, nthread * sizeof(TPCC_DB));
+	*tpcc_db = (TPCC_DB *)aligned_malloc(64, nthreads * sizeof(TPCC_DB));
 	for (uint64_t tid = 0; tid < nthreads; tid++)
 	{
 		tpcc_db[tid] = new TPCC_DB();
-		tpcc_db[tid]->initialize(nthreads, nwarehouse);
+		tpcc_db[tid]->initialize(nthreads, nwarehouse, nitems);
 	}
 }
 
@@ -250,9 +250,9 @@ uint64_t new_orders(uint64_t tid)
 
 int main(int argc, char *argv[])
 {
-	if (argc != 4)
+	if (argc != 5)
 	{
-		fprintf(stderr, "%s N_WAREHOUSE NTHREADS DURATION\n", argv[0]);
+		fprintf(stderr, "%s N_WAREHOUSE N_ITEMS NTHREADS DURATION\n", argv[0]);
 		return -1;
 	}
 
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
 
 	uint64_t nlocks = nwarehouse * 10 + nwarehouse * nitems;
 
-	init_db(nthreads, nwarehouse);
+	init_db(nthreads, nwarehouse, nitems);
 
 	run(argv, nwarehouse, nitems, nthreads, duration);
 
