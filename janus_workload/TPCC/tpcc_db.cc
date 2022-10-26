@@ -311,24 +311,23 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	int indx = (_no_w_id - 1) * 10 * 900 + (_no_d_id - 1) * 900 + (_no_o_id - 2101) % 900;
 	indx = indx < 0 ? -indx : indx;
 	indx = indx % (num_warehouses * 10 * 900);
-	// Korakitg
+
 	// do backup
-	// std::cout << "Using index: " << indx << std::endl;
 	backUpInst[tid]->fill_new_order_entry_indx = indx;
+	copy_new_order_info(backUpInst[tid]->new_order_entry_back, new_order[indx]);
 	flush_caches((void *)&backUpInst[tid]->fill_new_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->fill_new_order_entry_indx));
-	backUpInst[tid]->new_order_entry_back = new_order[indx];
 	flush_caches((void *)&backUpInst[tid]->new_order_entry_back, (unsigned)sizeof(backUpInst[tid]->new_order_entry_back));
 	s_fence();
 	backUpInst[tid]->fill_new_order_entry_back_valid = 1;
 	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
 	s_fence();
+
 	// just flush the cache
 	new_order[indx].no_o_id = _no_o_id;
 	new_order[indx].no_d_id = _no_d_id;
 	new_order[indx].no_w_id = _no_w_id;
 	flush_caches((void *)&new_order[indx], (unsigned)sizeof(new_order[indx]));
 	s_fence();
-	// std::cout << "Done with " << __FUNCTION__ << std::endl;
 }
 
 void TPCC_DB::fill_time(long long &time_slot)
