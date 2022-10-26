@@ -126,11 +126,10 @@ struct thread_data
 };
 
 /* An operation every thread runs during the execution */
-void *threadRun(void *arg)
+void *threadTimedRun(void *arg)
 {
 	struct thread_data *tData = (struct thread_data *)arg;
 	uint64_t tid = tData->tid;
-	uint64_t ops = tData->ops;
 
 	// Set CPU affinity
 	set_cpu(tid);
