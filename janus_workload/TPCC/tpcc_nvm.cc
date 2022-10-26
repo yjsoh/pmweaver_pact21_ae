@@ -23,14 +23,26 @@ This file models the TPCC benchmark.
 #define NUM_WAREHOUSES 1
 #define NUM_ITEMS 100 // 10000
 #define NUM_LOCKS NUM_WAREHOUSES * 10 + NUM_WAREHOUSES *NUM_ITEMS
-TPCC_DB *tpcc_db[NUM_THREADS];
+TPCC_DB **tpcc_db; // array of TPCC_DB, array length == nthreads
 
-void initialize(int tid)
+void init_db(uint64_t nthreads, uint64_t nwarehouse)
 {
-	tpcc_db[tid] = (TPCC_DB *)aligned_malloc(64, sizeof(TPCC_DB));
-	new (tpcc_db[tid]) TPCC_DB();
-	tpcc_db[tid]->initialize(NUM_WAREHOUSES, NUM_THREADS);
-	// fprintf(stderr, "Created tpcc at %p\n", (void *)tpcc_db[tid]);
+	*tpcc_db = (TPCC_DB *)aligned_malloc(64, nthread * sizeof(TPCC_DB));
+	for(uint64_t tid = 0; tid < nthreads; tid++)
+	{
+		tpcc_db[tid] = new TPCC_DB();
+		tpcc_db[tid]->initialize(nthreads, nwarehouse);
+	}
+}
+
+void deinit_db()
+{
+	for(uint64_t tid = 0; tid < nthreads; tid++)
+	{
+		tpcc_db[tid]->deinitialize();
+		delete tpcc_db[tid];
+	}
+	free(tpcc_db);
 }
 
 void *new_orders(void *arguments)
@@ -64,10 +76,7 @@ int main(int argc, char *argv[])
 
 	uint64_t nlocks = nwarehouse * 10 + nwarehouse * nitems;
 
-	for (int i = 0; i < nthreads; i++)
-	{
-		initialize(i);
-	}
+	init_db(nthreads, nwarehouse);
 
 	pthread_t threads[nthreads];
 	int id[nthreads];
@@ -77,6 +86,8 @@ int main(int argc, char *argv[])
 		id[i] = i;
 		new_orders((void *)&id[i]);
 	}
+
+	deinit_db();
 
 	return 0;
 }

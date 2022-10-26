@@ -74,7 +74,7 @@ public:
 	TPCC_DB();
 	~TPCC_DB();
 
-	void initialize(int _num_warehouses, int numThreads);
+	void initialize(uint64_t nthreads, uint64_t nwarehouse);
 	void populate_tables();
 	void fill_item_entry(int _i_id);
 	void fill_warehouse_entry(int _w_id);

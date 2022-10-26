@@ -35,7 +35,7 @@ unsigned TPCC_DB::fastrand()
 	return (g_seed >> 8) & 0x7FFFFFFF;
 }
 
-void TPCC_DB::initialize(int _num_warehouses, int numThreads)
+void TPCC_DB::initialize(int numThreads, int _num_warehouses)
 {
 	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	num_warehouses = _num_warehouses;
