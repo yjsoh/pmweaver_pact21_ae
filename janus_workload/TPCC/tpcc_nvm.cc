@@ -329,9 +329,9 @@ uint64_t new_orders(uint64_t tid, uint64_t nwarehouse)
 
 int main(int argc, char *argv[])
 {
-	if (argc != 5)
+	if (argc != 6)
 	{
-		fprintf(stderr, "%s N_WAREHOUSE N_ITEMS NTHREADS DURATION\n", argv[0]);
+		fprintf(stderr, "%s N_WAREHOUSE N_ITEMS NTHREADS DURATION NOPS\n", argv[0]);
 		return -1;
 	}
 
@@ -339,12 +339,15 @@ int main(int argc, char *argv[])
 	uint64_t nitems = atoi(argv[2]);
 	uint64_t nthreads = atoi(argv[3]);
 	uint64_t duration = atoi(argv[4]);
+	uint64_t nops = atoi(argv[5]);
+
+	assert(duration != 0 || nops != 0);
 
 	uint64_t nlocks = nwarehouse * 10 + nwarehouse * nitems;
 
 	init_db(nthreads, nwarehouse, nitems);
 
-	run(argv, nwarehouse, nitems, nthreads, duration);
+	run(argv, nwarehouse, nitems, nthreads, duration, nops);
 
 	deinit_db(nthreads);
 
