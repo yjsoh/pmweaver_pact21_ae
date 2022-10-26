@@ -20,7 +20,7 @@ This file is the TATP benchmark, performs various transactions as per the specif
 #include <thread>
 #include <iomanip>
 #include <math.h>
-#include "../common/common.h"
+#include "common.h"
 
 std::atomic<uint64_t> count;
 std::atomic<bool> stop;
