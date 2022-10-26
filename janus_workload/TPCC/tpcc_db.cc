@@ -492,11 +492,16 @@ void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &sou
 }
 
 /* Transactions*/
+
 void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 {
+
+	// warehouse
 	int w_indx = (w_id - 1);
-	int d_indx = (w_id - 1) * 10 + (d_id - 1);
-	int c_indx = (w_id - 1) * 10 * 3000 + (d_id - 1) * 3000 + (c_id - 1);
+
+	// district
+	int d_indx = w_indx * N_DISTRICT_PER_WAREHOUSE + (d_id - 1);
+	int d_o_id = district[d_indx].d_next_o_id % 15;
 	/*
 	queue_t reqLocks;
 	reqLocks.push(d_indx); // Lock for district
@@ -505,6 +510,17 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** district lock id: "<<d_indx<<std::endl;
 	*/
+
+	// customer
+	int c_indx = d_indx * N_CUSTOMER_PER_DISTRICT + (c_id - 1);
+
+	// new order
+	int no_indx = d_indx * N_NEW_ORDER_PER_DISTRICT + (d_o_id - 2101) % N_NEW_ORDER_PER_DISTRICT;
+
+	// order
+	int o_indx = d_indx * N_ORDER_PER_DISTRICT + (d_o_id - 1) % N_ORDER_PER_DISTRICT;
+
+	// Create orderline
 	int ol_cnt = get_random(tid, 5, 15);
 	int item_ids[15];
 	for (int i = 0; i < ol_cnt; i++)
@@ -514,7 +530,7 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 		do
 		{
 			match = false;
-			new_item_id = get_random(tid, 1, NUM_ITEMS);
+			new_item_id = get_random(tid, 1, num_items);
 			for (int j = 0; j < i; j++)
 			{
 				if (new_item_id == item_ids[j])
@@ -531,18 +547,18 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	/*
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** ol_cnt: "<<ol_cnt<<std::endl;
-	*/
-	for (int i = 0; i < ol_cnt; i++)
-	{
-		int item_lock_id = num_warehouses * 10 + (w_id - 1) * NUM_ITEMS + item_ids[i] - 1;
-		/*
-		reqLocks.push(item_lock_id); // Lock for each item in stock table
-		*/
-		/*
-		if(TPCC_DEBUG)
-		  // std::cout<<"**NOTx** item lock id: "<<item_lock_id<<" thread id: "<<tid<<std::endl;
-		*/
-	}
+	// */
+	// for (int i = 0; i < ol_cnt; i++)
+	// {
+	// 	int item_lock_id = num_warehouses * 10 + (w_id - 1) * num_items + item_ids[i] - 1;
+	// 	/*
+	// 	reqLocks.push(item_lock_id); // Lock for each item in stock table
+	// 	*/
+	// 	/*
+	// 	if(TPCC_DEBUG)
+	// 	  // std::cout<<"**NOTx** item lock id: "<<item_lock_id<<" thread id: "<<tid<<std::endl;
+	// 	*/
+	// }
 	// Korakit
 	// remove MT stuff
 	// acquire_locks(tid, reqLocks);
@@ -551,13 +567,12 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	  // std::cout<<"**NOTx** finished start tx: "<<std::endl;
 	*/
 
-	float w_tax = warehouse[w_indx].w_tax;
+	// float w_tax = warehouse[w_indx].w_tax;
+	// float d_tax = district[d_indx].d_tax;
+	// int d_o_id = district[d_indx].d_next_o_id;
+	// int no_indx = (w_id - 1) * 10 * 900 + (d_id - 1) * 900 + (d_o_id - 2101) % 900;
 
-	float d_tax = district[d_indx].d_tax;
-	int d_o_id = district[d_indx].d_next_o_id;
-	int no_indx = (w_id - 1) * 10 * 900 + (d_id - 1) * 900 + (d_o_id - 2101) % 900;
-
-	int o_indx = (w_id - 1) * 10 * 3000 + (d_id - 1) * 3000 + (d_o_id - 1) % 3000;
+	// int o_indx = (w_id - 1) * 10 * 3000 + (d_id - 1) * 3000 + (d_o_id - 1) % 3000;
 
 	// Korakit
 	// real stuff here
@@ -570,9 +585,11 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	// prepare backup log
 	backUpInst[tid]->district_back_valid = 0;
 	backUpInst[tid]->fill_new_order_entry_back_valid = 0;
+	backUpInst[tid]->fill_new_order_line_entry_valid = 0;
 	backUpInst[tid]->update_order_entry_back_valid = 0;
 	backUpInst[tid]->update_stock_entry_num_valid = 0;
 	flush_caches(&backUpInst[tid]->district_back_valid, sizeof(backUpInst[tid]->district_back_valid));
+	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
 	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
 	flush_caches(&backUpInst[tid]->update_order_entry_back_valid, sizeof(backUpInst[tid]->update_order_entry_back_valid));
 	flush_caches(&backUpInst[tid]->update_stock_entry_num_valid, sizeof(backUpInst[tid]->update_stock_entry_num_valid));
@@ -583,20 +600,26 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 
 	// do backup
 	copy_district_info(backUpInst[tid]->district_back, district[d_indx]);
-	district[d_indx].d_next_o_id++;
 	flush_caches(&backUpInst[tid]->district_back, sizeof(backUpInst[tid]->district_back));
 	flush_caches((void *)&district[d_indx].d_next_o_id, (unsigned)sizeof(district[d_indx].d_next_o_id));
 	s_fence();
 #endif
 
+	district[d_indx].d_next_o_id++;
+
+	// ~= create_neworder
 	fill_new_order_entry(w_id, d_id, d_o_id, tid);
 
+	// ~= create_order
 	update_order_entry(tid, w_id, d_id, d_o_id, c_id, ol_cnt);
 
 	float total_amount = 0.0;
 	for (int i = 0; i < ol_cnt; i++)
 	{
+		// ~= modify_stock
 		update_stock_entry(tid, w_id, item_ids[i], d_id, total_amount, i);
+
+		fill_new_order_line_entry(tid, w_id, d_id, d_o_id, i, item_ids[i]);
 	}
 
 #ifdef _ENABLE_LOGGING

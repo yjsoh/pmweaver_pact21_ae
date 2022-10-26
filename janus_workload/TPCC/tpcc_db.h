@@ -43,6 +43,7 @@ struct backUpLog
 	uint64_t fill_new_order_entry_back_valid;
 	uint64_t update_order_entry_back_valid;
 	uint64_t update_stock_entry_num_valid;
+	uint64_t fill_new_order_line_entry_valid;
 
 	// global log valid
 	uint64_t log_valid;
@@ -95,6 +96,7 @@ public:
 	void fill_order_entry(int _o_w_id, int _o_d_id, int _o_id);
 	void fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, int _o_ol_cnt, long long _o_entry_d);
 	void fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int tid);
+	void fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int _ol_o_id, int ol_num, int ol_i_id);
 	void fill_time(long long &time_slot);
 
 	/* Random related */
