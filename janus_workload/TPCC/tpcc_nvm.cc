@@ -21,6 +21,7 @@ This file models the TPCC benchmark.
 
 std::atomic<bool> stop;
 uint64_t new_orders(uint64_t tid);
+uint64_t new_orders_nops(uint64_t tid, uint64_t nops);
 
 /*
  *   File: barrier.h
@@ -223,6 +224,26 @@ void deinit_db(uint64_t nthreads)
 #ifdef _VOLATILE_TPCC_DB
 	free(tpcc_db);
 #endif
+}
+
+uint64_t new_orders_nops(uint64_t tid, uint64_t nops)
+{
+	int w_id, d_id, c_id;
+	uint64_t ops = 0;
+	fprintf(stderr, "Execution Started\n");
+	for(uint64_t i = 0; i < nops; i++)
+	{
+		w_id = tpcc_db->get_random(tid, 1, N_WAREHOUSE);
+		d_id = tpcc_db->get_random(tid, 1, N_DISTRICT_PER_WAREHOUSE);
+		c_id = tpcc_db->get_random(tid, 1, N_CUSTOMER_PER_DISTRICT);
+
+		tpcc_db->new_order_tx(tid, w_id, d_id, c_id);
+
+		ops++;
+	}
+	fprintf(stderr, "Execution finished. Returning: %lu\n", ops);
+
+	return ops;
 }
 
 uint64_t new_orders(uint64_t tid)
