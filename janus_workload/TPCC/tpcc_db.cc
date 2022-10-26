@@ -319,6 +319,7 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	indx = indx % (num_warehouses * 10 * 900);
 
 	// do backup
+#ifdef _ENABLE_LOGGING
 	backUpInst[tid]->fill_new_order_entry_indx = indx;
 	copy_new_order_info(backUpInst[tid]->new_order_entry_back, new_order[indx]);
 	flush_caches((void *)&backUpInst[tid]->fill_new_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->fill_new_order_entry_indx));
@@ -327,8 +328,8 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	backUpInst[tid]->fill_new_order_entry_back_valid = 1;
 	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
 	s_fence();
+#endif
 
-	// just flush the cache
 	new_order[indx].no_o_id = _no_o_id;
 	new_order[indx].no_d_id = _no_d_id;
 	new_order[indx].no_w_id = _no_w_id;
@@ -529,6 +530,7 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	//   flush_caches(uint64_t addr, unsigned size);
 	//   s_fence();
 
+#ifdef _ENABLE_LOGGING
 	// prepare backup log
 	backUpInst[tid]->district_back_valid = 0;
 	backUpInst[tid]->fill_new_order_entry_back_valid = 0;
@@ -549,6 +551,7 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	flush_caches(&backUpInst[tid]->district_back, sizeof(backUpInst[tid]->district_back));
 	flush_caches((void *)&district[d_indx].d_next_o_id, (unsigned)sizeof(district[d_indx].d_next_o_id));
 	s_fence();
+#endif
 
 	fill_new_order_entry(w_id, d_id, d_o_id, tid);
 
@@ -560,10 +563,12 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 		update_stock_entry(tid, w_id, item_ids[i], d_id, total_amount, i);
 	}
 
+#ifdef _ENABLE_LOGGING
 	// invalidate log entries
 	backUpInst[tid]->log_valid = 0;
 	flush_caches((void *)&backUpInst[tid]->log_valid, (unsigned)sizeof(backUpInst[tid]->log_valid));
 	s_fence();
+#endif
 
 	// Korakit
 	// debug removed
@@ -587,6 +592,7 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 
 	// Korakit
 	// create backup
+#ifdef _ENABLE_LOGGING
 	backUpInst[tid]->update_order_entry_indx = indx;
 	backUpInst[tid]->order_entry_back = order[indx];
 	flush_caches((void *)&backUpInst[tid]->update_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->update_order_entry_indx));
@@ -596,6 +602,7 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 	backUpInst[tid]->update_order_entry_back_valid = 1;
 	flush_caches((void *)&backUpInst[tid]->update_order_entry_back_valid, sizeof(backUpInst[tid]->update_order_entry_back_valid));
 	s_fence();
+#endif
 
 	order[indx].o_id = _o_id;
 	order[indx].o_carrier_id = 0;
