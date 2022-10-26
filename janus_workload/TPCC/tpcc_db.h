@@ -54,6 +54,7 @@ class TPCC_DB
 private:
 	// Tables with size dependent on num warehouses
 	short num_warehouses;
+	uint64_t num_items;
 	short random_3000[3000];
 	warehouse_entry *warehouse;
 	district_entry *district;
