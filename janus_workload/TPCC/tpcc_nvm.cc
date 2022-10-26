@@ -51,16 +51,28 @@ void *new_orders(void *arguments)
 
 int main(int argc, char *argv[])
 {
-	for (int i = 0; i < NUM_THREADS; i++)
+	if (argc != 4)
+	{
+		fprintf(stderr, "%s N_WAREHOUSE NTHREADS DURATION\n", argv[0]);
+		return -1;
+	}
+
+	uint64_t nwarehouse = atoi(argv[1]);
+	uint64_t nitems = atoi(argv[2]);
+	uint64_t nthreads = atoi(argv[3]);
+	uint64_t duration = atoi(argv[4]);
+
+	uint64_t nlocks = nwarehouse * 10 + nwarehouse * nitems;
+
+	for (int i = 0; i < nthreads; i++)
 	{
 		initialize(i);
 	}
 
-	pthread_t threads[NUM_THREADS];
-	int id[NUM_THREADS];
-	std::cout << "Done with init()" << std::endl;
+	pthread_t threads[nthreads];
+	int id[nthreads];
 
-	for (int i = 0; i < NUM_THREADS; i++)
+	for (int i = 0; i < nthreads; i++)
 	{
 		id[i] = i;
 		new_orders((void *)&id[i]);
