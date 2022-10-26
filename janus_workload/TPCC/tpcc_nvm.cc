@@ -312,6 +312,9 @@ uint64_t new_orders(uint64_t tid, uint64_t nwarehouse)
 	int w_id, d_id, c_id;
 	uint64_t ops = 0;
 	fprintf(stderr, "Running received\n");
+	pthread_mutex_t tmp;
+	pthread_mutex_init(&tpm, NULL);
+	pthread_mutex_lock(&tmp);
 	while (!stop)
 	{
 		w_id = tpcc_db->get_random(tid, 1, nwarehouse);
@@ -323,6 +326,7 @@ uint64_t new_orders(uint64_t tid, uint64_t nwarehouse)
 		ops++;
 	}
 	fprintf(stderr, "Stop received. Returning: %lu\n", ops);
+	pthread_mutex_unlock(&tmp);
 
 	return ops;
 }
