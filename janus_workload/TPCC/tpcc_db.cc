@@ -49,11 +49,29 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	new_order = (new_order_entry *)pmalloc(num_new_orders * sizeof(new_order_entry));
 	order_line = (order_line_entry *)pmalloc(num_order_lines * sizeof(order_line_entry));
 
-	backUpInst = (struct backUpLog**) pmalloc(nthreads * sizeof(struct backUpLog));
-	for(uint64_t i = 0; i < nthreads; i++)
+	backUpInst = (struct backUpLog **)pmalloc(nthreads * sizeof(struct backUpLog));
+	for (uint64_t i = 0; i < nthreads; i++)
 	{
-		backUpInst[i] = (struct backUpLog*) pmalloc(sizeof(struct backUpLog));
+		backUpInst[i] = (struct backUpLog *)pmalloc(sizeof(struct backUpLog));
 	}
+
+	uint64_t total_mem = 0;
+	total_mem += (nwarehouse * sizeof(warehouse_entry));
+	total_mem += (num_districts * sizeof(district_entry));
+	total_mem += (num_customers * sizeof(customer_entry));
+	total_mem += (num_stocks * sizeof(stock_entry));
+	total_mem += (nitems * sizeof(item_entry));
+	total_mem += (num_histories * sizeof(history_entry));
+	total_mem += (num_orders * sizeof(order_entry));
+	total_mem += (num_new_orders * sizeof(new_order_entry));
+	total_mem += (num_order_lines * sizeof(order_line_entry));
+
+	total_mem += (nthreads * sizeof(struct backUpLog));
+	for (uint64_t i = 0; i < nthreads; i++)
+	{
+		total_mem += (sizeof(struct backUpLog));
+	}
+	std::cout << "Total Allocated Memory: " << total_mem / (1UL << 20) << " MB \n";
 
 	for (int i = 0; i < 3000; i++)
 	{
