@@ -118,11 +118,11 @@ static inline void set_cpu(int cpu)
 	}
 }
 
-
 struct thread_data
 {
 	uint64_t tid;
 	uint64_t ops;
+	uint64_t nops; // if execute exactly nops
 };
 
 /* An operation every thread runs during the execution */
@@ -150,7 +150,30 @@ void *threadRun(void *arg)
 	return NULL;
 }
 
-void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, uint64_t duration)
+void *threadOpRun(void *arg)
+{
+	struct thread_data *tData = (struct thread_data *)arg;
+	uint64_t tid = tData->tid;
+	uint64_t nops = tData->nops;
+
+	// Set CPU affinity
+	set_cpu(tid);
+
+#ifdef _ENABLE_AGR
+	while (!((bool)my_context_void()))
+	{
+	}
+	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_void());
+#endif
+
+	barrier_cross(&init_barrier);
+	barrier_cross(&barrier_global);
+
+	tData->ops = new_orders_nops(tid, nops);
+
+	return NULL;
+}
+
 {
 	pthread_t threads[nthreads];
 	thread_data allThreadsData[nthreads];
