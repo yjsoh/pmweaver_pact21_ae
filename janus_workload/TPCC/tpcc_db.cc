@@ -445,18 +445,9 @@ void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &sou
 /* Transactions*/
 void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 {
-
-	// std::cout << "Entering " << __FUNCTION__ << std::endl;
-	// OPT_VAL((void*)(1), threadId, (void*)backUpInst.district_back_valid.getPtr(), 0);
-	// OPT_VAL((void*)(2), threadId, (void*)backUpInst.fill_new_order_entry_back_valid.getPtr(), 0);
-	// OPT_VAL((void*)(3), threadId, (void*)backUpInst.update_order_entry_back_valid.getPtr(), 0);
-	// OPT_VAL((void*)(4), threadId, (void*)backUpInst.update_stock_entry_num_valid.getPtr(), 0);
-
 	int w_indx = (w_id - 1);
 	int d_indx = (w_id - 1) * 10 + (d_id - 1);
 	int c_indx = (w_id - 1) * 10 * 3000 + (d_id - 1) * 3000 + (c_id - 1);
-	// OPT((void*)(5), threadId, &backUpInst.district_back, &district[d_indx], sizeof(backUpInst.district_back));
-	// OPT_ADDR((void*)(6), threadId, &backUpInst.new_order_entry_back, sizeof(backUpInst.new_order_entry_back));
 	/*
 	queue_t reqLocks;
 	reqLocks.push(d_indx); // Lock for district
@@ -465,7 +456,6 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** district lock id: "<<d_indx<<std::endl;
 	*/
-	//  fprintf(stdout, "%d\n", __LINE__);
 	int ol_cnt = get_random(threadId, 5, 15);
 	int item_ids[ol_cnt];
 	for (int i = 0; i < ol_cnt; i++)
@@ -488,9 +478,7 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 		item_ids[i] = new_item_id;
 	}
 
-	// fprintf(stdout, "%d\n", __LINE__);
 	std::sort(item_ids, item_ids + ol_cnt);
-	// fprintf(stdout, "%d\n", __LINE__);
 	/*
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** ol_cnt: "<<ol_cnt<<std::endl;
@@ -528,7 +516,7 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	//  let's force all writes when the transaction completes
 	//   flush_caches(uint64_t addr, unsigned size);
 	//   s_fence();
-	//  fprintf(stdout, "%d\n", __LINE__);
+
 	// prepare backup log
 	backUpInst.district_back_valid = 0;
 	flush_caches(&backUpInst.district_back_valid, sizeof(backUpInst.district_back_valid));
@@ -539,15 +527,11 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	backUpInst.update_stock_entry_num_valid = 0;
 	flush_caches(&backUpInst.update_stock_entry_num_valid, sizeof(backUpInst.update_stock_entry_num_valid));
 	s_fence();
-	// OPT_VAL((void*)(0x41), threadId, (void*)backUpInst.district_back_valid.getPtr(), 1);
-	// OPT_VAL((void*)(0x42), threadId, (void*)backUpInst.fill_new_order_entry_back_valid.getPtr(), 1);
-	// OPT_VAL((void*)(0x43), threadId, (void*)backUpInst.update_order_entry_back_valid.getPtr(), 1);
 	backUpInst.log_valid = 1;
 	flush_caches((void *)&backUpInst.log_valid, (unsigned)sizeof(backUpInst.log_valid));
 	s_fence();
 
 	// do backup
-	//  fprintf(stdout, "%d\n", __LINE__);
 	backUpInst.district_back = district[d_indx];
 	flush_caches(&backUpInst.district_back, sizeof(backUpInst.district_back));
 
@@ -555,25 +539,21 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	// flush district[d_indx].d_next_o_id++;
 	flush_caches((void *)&district[d_indx].d_next_o_id, (unsigned)sizeof(district[d_indx].d_next_o_id));
 	s_fence();
-	// fprintf(stdout, "%d\n", __LINE__);
+
 	fill_new_order_entry(w_id, d_id, d_o_id, threadId);
 
-	// fprintf(stdout, "%d\n", __LINE__);
 	update_order_entry(w_id, d_id, d_o_id, c_id, ol_cnt, threadId);
-	// fprintf(stdout, "%d\n", __LINE__);
 
 	float total_amount = 0.0;
 	for (int i = 0; i < ol_cnt; i++)
 	{
 		update_stock_entry(threadId, w_id, item_ids[i], d_id, total_amount, i);
 	}
-	// fprintf(stdout, "%d\n", __LINE__);
+
 	// invalidate log entries
 	backUpInst.log_valid = 0;
 	flush_caches((void *)&backUpInst.log_valid, (unsigned)sizeof(backUpInst.log_valid));
 	s_fence();
-	// fprintf(stdout, "%d\n", __LINE__);
-	/////////////////
 
 	// Korakit
 	// debug removed
@@ -585,6 +565,7 @@ void TPCC_DB::new_order_tx(int threadId, int w_id, int d_id, int c_id)
 	// Korakit
 	// remove MT stuffs
 	// release_locks(threadId);
+
 	return;
 }
 
