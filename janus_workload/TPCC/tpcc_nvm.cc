@@ -84,6 +84,121 @@ static inline void barrier_cross(barrier_t *b)
 
 #endif /* BARRIER_H */
 
+
+/************************************************************/
+// Following from Mirror work
+barrier_t barrier_global;
+barrier_t init_barrier;
+
+static uint8_t cores[] = {
+	1, 3, 5, 7, 9, 11, 13, 15,
+	0, 2, 4, 6, 8, 10, 12, 14};
+
+static inline void set_cpu(int cpu)
+{
+	assert(cpu > -1);
+	int n_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	if (cpu < n_cpus)
+	{
+		int cpu_use = cores[cpu];
+		cpu_set_t mask;
+		CPU_ZERO(&mask);
+		CPU_SET(cpu_use, &mask);
+		pthread_t thread = pthread_self();
+		if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &mask) != 0)
+		{
+			fprintf(stderr, "Error setting thread affinity\n");
+		}
+	}
+}
+
+
+struct thread_data
+{
+	uint32_t tid;
+	uint64_t ops;
+};
+
+/* An operation every thread runs during the execution */
+void *threadRun(void *arg)
+{
+	struct thread_data *tData = (struct thread_data *)arg;
+	uint32_t tid = tData->tid;
+	uint64_t ops = tData->ops;
+	uint64_t from = tData->from;
+	uint64_t to = tData->to;
+	bool load = tData->load;
+
+	// Set CPU affinity
+	set_cpu(tid);
+
+#ifdef _ENABLE_AGR
+	while (!((bool)my_context_void()))
+	{
+	}
+	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_void());
+#endif
+
+	barrier_cross(&init_barrier);
+	barrier_cross(&barrier_global);
+
+	tData->ops = new_orders(tid);
+
+	return NULL;
+}
+
+void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, uint64_t duration)
+{
+	pthread_t threads[nthreads];
+	thread_data allThreadsData[nthreads];
+	struct timespec tv_start, tv_end;
+	std::ofstream fexec;
+
+	/* Init */
+	fexec.open("tpcc.csv", std::ios_base::app);
+	barrier_init(&barrier_global, nthreads + 1);
+	barrier_init(&init_barrier, nthreads);
+	for(uint64_t i = 0; i < nthreads; i++)
+	{
+		allThreadsData[i].tid = i;
+		allThreadsData[i].ops = 0;
+	}
+	stop = (false);
+
+	/* Run */
+	for (uint64_t i = 0; i < nthreads; i++)
+	{
+		pthread_create(&threads[i], NULL, threadRun, (void *)&allThreadsData[i]);
+	}
+
+	barrier_cross(&barrier_global);
+
+	sleep(duration);
+
+	stop = (true);
+	for (uint64_t i = 0; i < nthreads; i++)
+	{
+		pthread_join(threads[i], NULL);
+	}
+
+	/* Collect */
+	uint64_t totalOps = 0;
+	for(uint64_t i = 0; i < nthreads; i++)
+	{
+		totalOps += allThreadsData[i].ops;
+	}
+
+	uint64_t tput = (uint64_t)((double)totalOps) / ((double)duration);
+	double mtput = (double)tput / (1000000UL);
+
+	uint64_t precision = 4;
+	fexec << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << std::endl;
+	std::cout << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+	std::cerr << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+
+	fexec.close();
+}
+
 #define NUM_ORDERS 100 // 10000000
 #define NUM_THREADS 1
 
@@ -150,14 +265,7 @@ int main(int argc, char *argv[])
 
 	init_db(nthreads, nwarehouse);
 
-	pthread_t threads[nthreads];
-	int id[nthreads];
-
-	for (int i = 0; i < nthreads; i++)
-	{
-		id[i] = i;
-		new_orders((void *)&id[i]);
-	}
+	run(argv, nwarehouse, nitems, nthreads, duration);
 
 	deinit_db();
 
