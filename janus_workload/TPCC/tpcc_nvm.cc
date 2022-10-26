@@ -90,7 +90,6 @@ static inline void barrier_cross(barrier_t *b)
 
 #endif /* BARRIER_H */
 
-
 /************************************************************/
 // Following from Mirror work
 barrier_t barrier_global;
@@ -173,7 +172,10 @@ void *threadOpRun(void *arg)
 	return NULL;
 }
 
+void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, uint64_t duration, uint64_t nops)
 {
+	double exectime;
+	uint64_t precision = 4;
 	pthread_t threads[nthreads];
 	thread_data allThreadsData[nthreads];
 	struct timespec tv_start, tv_end;
@@ -183,43 +185,80 @@ void *threadOpRun(void *arg)
 	fexec.open("tpcc.csv", std::ios_base::app);
 	barrier_init(&barrier_global, nthreads + 1);
 	barrier_init(&init_barrier, nthreads);
-	for(uint64_t i = 0; i < nthreads; i++)
+	for (uint64_t i = 0; i < nthreads; i++)
 	{
 		allThreadsData[i].tid = i;
 		allThreadsData[i].ops = 0;
+		allThreadsData[i].nops = nops;
 	}
 	stop = (false);
 
-	/* Run */
-	for (uint64_t i = 0; i < nthreads; i++)
+	/* Timed Run */
+	if (duration != 0)
 	{
-		pthread_create(&threads[i], NULL, threadRun, (void *)&allThreadsData[i]);
+		for (uint64_t i = 0; i < nthreads; i++)
+		{
+			pthread_create(&threads[i], NULL, threadTimedRun, (void *)&allThreadsData[i]);
+		}
+
+		barrier_cross(&barrier_global);
+
+		// for(int i = 0; i < duration; i++) {
+		// 	sleep(1);
+		// 	uint64_t totalOps = 0;
+		// 	for(uint64_t j = 0; j < nthreads; j++)
+		// 	{
+		// 		totalOps += allThreadsData[j].ops;
+		// 	}
+		// 	uint64_t tput = (uint64_t)((double)totalOps) / ((double)i);
+		// 	double mtput = (double)tput / (1000000UL);
+		// 	std::cout << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+		// }
+
+		sleep(duration);
+
+		stop = (true);
+		for (uint64_t i = 0; i < nthreads; i++)
+		{
+			pthread_join(threads[i], NULL);
+		}
+		exectime = duration;
 	}
-
-	barrier_cross(&barrier_global);
-
-	sleep(duration);
-
-	stop = (true);
-	for (uint64_t i = 0; i < nthreads; i++)
+	else
 	{
-		pthread_join(threads[i], NULL);
+		for (uint64_t i = 0; i < nthreads; i++)
+		{
+			pthread_create(&threads[i], NULL, threadOpRun, (void *)&allThreadsData[i]);
+		}
+
+		clock_gettime(CLOCK_REALTIME, &tv_start);
+		barrier_cross(&barrier_global);
+
+		for (uint64_t i = 0; i < nthreads; i++)
+		{
+			pthread_join(threads[i], NULL);
+		}
+		clock_gettime(CLOCK_REALTIME, &tv_end);
+
+		exectime = (tv_end.tv_sec - tv_start.tv_sec) * 1E9;
+		exectime += tv_end.tv_nsec - tv_start.tv_nsec;
+		exectime = (double)exectime / (double)1E9; // convert to second
 	}
 
 	/* Collect */
 	uint64_t totalOps = 0;
-	for(uint64_t i = 0; i < nthreads; i++)
+	for (uint64_t i = 0; i < nthreads; i++)
 	{
 		totalOps += allThreadsData[i].ops;
 	}
 
-	uint64_t tput = (uint64_t)((double)totalOps) / ((double)duration);
+	uint64_t tput = (uint64_t)((double)totalOps) / ((double)exectime);
 	double mtput = (double)tput / (1000000UL);
 
-	uint64_t precision = 4;
-	fexec << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << std::endl;
-	std::cout << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
-	std::cerr << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+	// uint64_t precision = 4;
+	fexec << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(nitems) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(nops) << "," << std::to_string(totalOps) << "," << std::to_string(exectime) << "," << std::to_string(tput) << std::endl;
+	std::cout << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(nitems) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(nops) << "," << std::to_string(totalOps) << "," << std::to_string(exectime) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+	std::cerr << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(nitems) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(nops) << "," << std::to_string(totalOps) << "," << std::to_string(exectime) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
 
 	fexec.close();
 }
@@ -253,7 +292,7 @@ uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse)
 	int w_id, d_id, c_id;
 	uint64_t ops = 0;
 	fprintf(stderr, "Execution Started\n");
-	for(uint64_t i = 0; i < nops; i++)
+	for (uint64_t i = 0; i < nops; i++)
 	{
 		w_id = tpcc_db->get_random(tid, 1, nwarehouse);
 		d_id = tpcc_db->get_random(tid, 1, N_DISTRICT_PER_WAREHOUSE);
