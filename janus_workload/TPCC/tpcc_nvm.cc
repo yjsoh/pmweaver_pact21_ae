@@ -10,12 +10,17 @@ This file models the TPCC benchmark.
 // remove MT stuffs
 //#include <pthread.h>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <sys/time.h>
 #include <string>
 #include <fstream>
+#include <assert.h>
 #include "common.h"
 #include "tpcc_db.h"
+
+std::atomic<bool> stop;
+uint64_t new_orders(uint64_t tid);
 
 /*
  *   File: barrier.h
@@ -125,9 +130,6 @@ void *threadRun(void *arg)
 	struct thread_data *tData = (struct thread_data *)arg;
 	uint64_t tid = tData->tid;
 	uint64_t ops = tData->ops;
-	uint64_t from = tData->from;
-	uint64_t to = tData->to;
-	bool load = tData->load;
 
 	// Set CPU affinity
 	set_cpu(tid);
@@ -192,9 +194,9 @@ void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, 
 	double mtput = (double)tput / (1000000UL);
 
 	uint64_t precision = 4;
-	fexec << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << std::endl;
-	std::cout << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
-	std::cerr << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+	fexec << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << std::endl;
+	std::cout << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
+	std::cerr << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
 
 	fexec.close();
 }
@@ -227,7 +229,6 @@ void deinit_db(uint64_t nthreads)
 	free(tpcc_db);
 }
 
-std::atomic<bool> stop;
 uint64_t new_orders(uint64_t tid)
 {
 	uint64_t ops = 0;
