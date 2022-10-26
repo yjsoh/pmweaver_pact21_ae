@@ -31,29 +31,13 @@ TPCC_DB::TPCC_DB(uint64_t nwarehouse, uint64_t nitems) : num_warehouses(nwarehou
 
 void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
-	uint64_t num_districts = 10 * nwarehouse;
-	uint64_t num_customers = 3000 * num_districts;
-	uint64_t num_stocks = nitems * nwarehouse;
+	uint64_t num_districts = N_DISTRICT_PER_WAREHOUSE * nwarehouse;
+	uint64_t num_customers = N_CUSTOMER_PER_DISTRICT * num_districts;
+	uint64_t num_stocks = nwarehouse * nitems;
 	uint64_t num_histories = num_customers;
-	uint64_t num_orders = 3000 * num_districts;
-	uint64_t num_order_lines = 15 * num_orders; // Max possible, average is 10*num_orders
-	uint64_t num_new_orders = 900 * num_districts;
-
-	warehouse = (warehouse_entry *)pmalloc(nwarehouse * sizeof(warehouse_entry));
-	district = (district_entry *)pmalloc(num_districts * sizeof(district_entry));
-	customer = (customer_entry *)pmalloc(num_customers * sizeof(customer_entry));
-	stock = (stock_entry *)pmalloc(num_stocks * sizeof(stock_entry));
-	item = (item_entry *)pmalloc(nitems * sizeof(item_entry));
-	history = (history_entry *)pmalloc(num_histories * sizeof(history_entry));
-	order = (order_entry *)pmalloc(num_orders * sizeof(order_entry));
-	new_order = (new_order_entry *)pmalloc(num_new_orders * sizeof(new_order_entry));
-	order_line = (order_line_entry *)pmalloc(num_order_lines * sizeof(order_line_entry));
-
-	backUpInst = (struct backUpLog **)pmalloc(nthreads * sizeof(struct backUpLog));
-	for (uint64_t i = 0; i < nthreads; i++)
-	{
-		backUpInst[i] = (struct backUpLog *)pmalloc(sizeof(struct backUpLog));
-	}
+	uint64_t num_orders = N_ORDER_PER_DISTRICT * num_districts;
+	uint64_t num_order_lines = N_ORDER_LINE_PER_ORDER * num_orders; // Max possible, average is 10*num_orders
+	uint64_t num_new_orders = N_NEW_ORDER_PER_DISTRICT * num_districts;
 
 	uint64_t total_mem = 0;
 	total_mem += (nwarehouse * sizeof(warehouse_entry));
@@ -65,13 +49,28 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	total_mem += (num_orders * sizeof(order_entry));
 	total_mem += (num_new_orders * sizeof(new_order_entry));
 	total_mem += (num_order_lines * sizeof(order_line_entry));
-
 	total_mem += (nthreads * sizeof(struct backUpLog));
 	for (uint64_t i = 0; i < nthreads; i++)
 	{
 		total_mem += (sizeof(struct backUpLog));
 	}
 	std::cout << "Total Allocated Memory: " << total_mem / (1UL << 20) << " MB \n";
+
+	init_pmalloc(total_mem);
+	warehouse = (warehouse_entry *)pmalloc(nwarehouse * sizeof(warehouse_entry));
+	district = (district_entry *)pmalloc(num_districts * sizeof(district_entry));
+	customer = (customer_entry *)pmalloc(num_customers * sizeof(customer_entry));
+	stock = (stock_entry *)pmalloc(num_stocks * sizeof(stock_entry));
+	item = (item_entry *)pmalloc(nitems * sizeof(item_entry));
+	history = (history_entry *)pmalloc(num_histories * sizeof(history_entry));
+	order = (order_entry *)pmalloc(num_orders * sizeof(order_entry));
+	order_line = (order_line_entry *)pmalloc(num_order_lines * sizeof(order_line_entry));
+	new_order = (new_order_entry *)pmalloc(num_new_orders * sizeof(new_order_entry));
+	backUpInst = (struct backUpLog **)pmalloc(nthreads * sizeof(struct backUpLog));
+	for (uint64_t i = 0; i < nthreads; i++)
+	{
+		backUpInst[i] = (struct backUpLog *)pmalloc(sizeof(struct backUpLog));
+	}
 
 	for (int i = 0; i < 3000; i++)
 	{
@@ -129,7 +128,7 @@ void TPCC_DB::populate_tables()
 {
 	// std::cout << "Entering " << __FUNCTION__ << std::endl;
 	//// std::cout<<"populating item table"<<std::endl;
-	for (int i = 0; i < NUM_ITEMS; i++)
+	for (int i = 0; i < num_items; i++)
 	{
 		fill_item_entry(i + 1);
 	}
@@ -138,15 +137,15 @@ void TPCC_DB::populate_tables()
 	for (int i = 0; i < num_warehouses; i++)
 	{
 		fill_warehouse_entry(i + 1);
-		for (int j = 0; j < NUM_ITEMS; j++)
+		for (int j = 0; j < num_items; j++)
 		{
 			fill_stock_entry(i + 1, j + 1);
 		}
 		//// std::cout<<"finished populating stock table"<<std::endl;
-		for (int j = 0; j < 10; j++)
+		for (int j = 0; j < N_DISTRICT_PER_WAREHOUSE; j++)
 		{
 			fill_district_entry(i + 1, j + 1);
-			for (int k = 0; k < 3000; k++)
+			for (int k = 0; k < N_CUSTOMER_PER_DISTRICT; k++)
 			{
 				fill_customer_entry(i + 1, j + 1, k + 1);
 				fill_history_entry(i + 1, j + 1, k + 1);
@@ -164,7 +163,7 @@ void TPCC_DB::fill_item_entry(int _i_id)
 {
 	int indx = (_i_id - 1);
 	item[indx].i_id = _i_id;
-	item[indx].i_im_id = rand_local(1, NUM_ITEMS);
+	item[indx].i_im_id = rand_local(1, num_items);
 	random_a_string(14, 24, item[indx].i_name);
 	item[indx].i_price = rand_local(1, 100) * (1.0);
 	random_a_original_string(26, 50, 10, item[indx].i_data);
@@ -187,7 +186,7 @@ void TPCC_DB::fill_warehouse_entry(int _w_id)
 void TPCC_DB::fill_stock_entry(int _s_w_id, int _s_i_id)
 {
 	//// std::cout<<"entered fill stock entry: "<<_s_w_id<<", "<<_s_i_id<<std::endl;
-	int indx = (_s_w_id - 1) * NUM_ITEMS + (_s_i_id - 1);
+	int indx = (_s_w_id - 1) * num_items + (_s_i_id - 1);
 	stock[indx].s_i_id = _s_i_id;
 	//// std::cout<<"1"<<std::endl;
 	stock[indx].s_w_id = _s_w_id;
@@ -314,7 +313,7 @@ void TPCC_DB::fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, in
 	order_line[indx].ol_d_id = _ol_d_id;
 	order_line[indx].ol_w_id = _ol_w_id;
 	order_line[indx].ol_number = _o_ol_cnt;
-	order_line[indx].ol_i_id = rand_local(1, NUM_ITEMS);
+	order_line[indx].ol_i_id = rand_local(1, num_items);
 	order_line[indx].ol_supply_w_id = _ol_w_id;
 	if (_ol_o_id < 2101)
 	{

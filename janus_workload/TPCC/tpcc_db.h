@@ -11,6 +11,12 @@ This file declares the tpcc database and the accesor transactions.
 #include <pthread.h>
 #include <cstdlib>
 
+#define N_DISTRICT_PER_WAREHOUSE 10
+#define N_CUSTOMER_PER_DISTRICT 3000
+#define N_ORDER_PER_DISTRICT 3000
+#define N_ORDER_LINE_PER_ORDER 15
+#define N_NEW_ORDER_PER_DISTRICT 900
+
 typedef simple_queue queue_t;
 
 struct backUpLog
