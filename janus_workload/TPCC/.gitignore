@@ -3,3 +3,6 @@ tpcc_nvm
 tpcc.adr.*
 tpcc.eadr.*
 agr_tpcc/
+
+*.csv
+!tpcc.csv

@@ -4,3 +4,6 @@ tatp.eadr.undo
 tatp.adr.clobber
 tatp.eadr.clobber
 agr_tatp/
+
+*.csv
+!tatp.csv
