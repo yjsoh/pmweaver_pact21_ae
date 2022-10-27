@@ -2,13 +2,19 @@
 
 domain=(adr eadr)
 binary=(clobber undo)
-repeats=1
+repeats=10
+
+# mkdir -p agr_tatp
+# (cd agr_tatp && ../../../../script/compile_and_execute.sh TATP 12_fence)
 
 for i in $(seq $repeats); do
-	for d in ${domain[@]}; do
-		for b in ${binary[@]}; do
+	for d in "${domain[@]}"; do
+		for b in "${binary[@]}"; do
 			# NSUBSCRIBER NOPS NTHREADS DURATION
 			sudo ./tatp.$d.$b 1000000 0 1 10
 		done
 	done
+
+	sudo ./agr_tatp/TATP_12_fence 1000000 0 1 10
+	yj-noti "$i/$repeats"
 done

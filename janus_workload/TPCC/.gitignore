@@ -2,4 +2,4 @@ tpcc_nvm
 *.o
 tpcc.adr.*
 tpcc.eadr.*
-tpcc.csv
+agr_tpcc/
