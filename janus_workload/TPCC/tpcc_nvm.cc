@@ -19,6 +19,9 @@ This file models the TPCC benchmark.
 #include "common.h"
 #include "tpcc_db.h"
 
+#ifdef _ENABLE_AGR
+extern void *my_context_valid();
+#endif
 std::atomic<bool> stop;
 uint64_t new_orders(uint64_t tid, uint64_t nwarehouse);
 uint64_t new_orders_nops(uint64_t tid, uint64_t nwarehouse, uint64_t nops);
@@ -136,10 +139,10 @@ void *threadTimedRun(void *arg)
 	set_cpu(tid);
 
 #ifdef _ENABLE_AGR
-	while (!((bool)my_context_void()))
+	while (!((bool)my_context_valid()))
 	{
 	}
-	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_void());
+	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_valid());
 #endif
 
 	barrier_cross(&init_barrier);
@@ -161,10 +164,10 @@ void *threadOpRun(void *arg)
 	set_cpu(tid);
 
 #ifdef _ENABLE_AGR
-	while (!((bool)my_context_void()))
+	while (!((bool)my_context_valid()))
 	{
 	}
-	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_void());
+	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_valid());
 #endif
 
 	barrier_cross(&init_barrier);
