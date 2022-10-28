@@ -25,10 +25,6 @@ This file is the TATP benchmark, performs various transactions as per the specif
 std::atomic<uint64_t> count;
 std::atomic<bool> stop;
 
-#ifdef _ENABLE_AGR
-extern void *my_context_valid();
-#endif
-
 TATP_DB *my_tatp_db;
 void *pop = NULL;
 
@@ -204,13 +200,6 @@ void *threadRun(void *arg)
 
 	// Set CPU affinity
 	set_cpu(id - 1);
-
-#ifdef _ENABLE_AGR
-	while (!((bool)my_context_valid()))
-	{
-	}
-	// fprintf(stdout, "threadRun (ID:%lu)\n", (uint64_t)my_context_void());
-#endif
 
 	if(load)
 	{
