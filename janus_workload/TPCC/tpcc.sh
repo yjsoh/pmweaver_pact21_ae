@@ -6,7 +6,7 @@ repeats=10
 arg="10 1000000 1 10 0"
 
 # mkdir -p agr_tpcc
-# (cd agr_tpcc && ../../../../script/compile_and_execute.sh TPCC 12_fence)
+# (cd agr_tpcc && ../../../../script/compile_and_execute.sh TPCC 39_fence)
 
 for i in $(seq $repeats); do
 	for d in "${domain[@]}"; do
@@ -17,7 +17,7 @@ for i in $(seq $repeats); do
 		done
 	done
 
-	sudo ./agr_tpcc/TPCC_12_fence $arg
+	sudo ./agr_tpcc/TPCC_39_fence $arg
 
 	yj-noti "$i/$repeats"
 done
