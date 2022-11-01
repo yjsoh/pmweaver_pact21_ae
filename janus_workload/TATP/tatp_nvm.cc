@@ -201,7 +201,7 @@ void *threadRun(void *arg)
 	// Set CPU affinity
 	set_cpu(id - 1);
 
-	if(load)
+	if (load)
 	{
 		my_tatp_db->populate_tables(from, to);
 		std::cout << "Populate Table done: " << id << "\n";
@@ -224,7 +224,7 @@ void run(char *argv[], uint64_t nsub, uint64_t nops, uint64_t nthreads, uint64_t
 	fexec.open("tatp.csv", std::ios_base::app);
 
 	/* Load */
-	unsigned max_nthreads = (nthreads > LOAD_THREADS)?nthreads:LOAD_THREADS;
+	unsigned max_nthreads = (nthreads > LOAD_THREADS) ? nthreads : LOAD_THREADS;
 	pthread_t threads[max_nthreads];
 	thread_data allThreadsData[max_nthreads];
 	unsigned per_thread_sub = nsub / LOAD_THREADS;
@@ -278,6 +278,12 @@ void run(char *argv[], uint64_t nsub, uint64_t nops, uint64_t nthreads, uint64_t
 
 	uint64_t tput = (uint64_t)((double)totalOps) / ((double)duration);
 	double mtput = (double)tput / (1000000UL);
+
+	long pos = fexec.tellp();
+	if (pos == 0)
+	{
+		fexec << "binary,nsubscriber,totalOps,nthread,duration,throughput\n";
+	}
 
 	uint64_t precision = 4;
 	fexec << argv[0] << "," << std::to_string(nsub) << "," << std::to_string(totalOps) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(tput) << std::endl;

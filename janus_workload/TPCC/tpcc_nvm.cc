@@ -246,6 +246,12 @@ void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, 
 	double mtput = (double)tput / (1000000UL);
 
 	// uint64_t precision = 4;
+	long pos = fexec.tellp();
+	if (pos == 0)
+	{
+		fexec << "binary,nwarehouse,nitems,nthread,duration,nops,totalOps,exectime,throughput\n";
+	}
+
 	fexec << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(nitems) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(nops) << "," << std::to_string(totalOps) << "," << std::to_string(exectime) << "," << std::to_string(tput) << std::endl;
 	std::cout << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(nitems) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(nops) << "," << std::to_string(totalOps) << "," << std::to_string(exectime) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
 	std::cerr << argv[0] << "," << std::to_string(nwarehouse) << "," << std::to_string(nitems) << "," << std::to_string(nthreads) << "," << std::to_string(duration) << "," << std::to_string(nops) << "," << std::to_string(totalOps) << "," << std::to_string(exectime) << "," << std::to_string(tput) << "," << std::setprecision(precision) << mtput << std::endl;
