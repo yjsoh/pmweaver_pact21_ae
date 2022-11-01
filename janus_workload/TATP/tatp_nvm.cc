@@ -282,7 +282,7 @@ void run(char *argv[], uint64_t nsub, uint64_t nops, uint64_t nthreads, uint64_t
 	long pos = fexec.tellp();
 	if (pos == 0)
 	{
-		fexec << "binary,nsubscriber,totalOps,nthread,duration,throughput\n";
+		fexec << "binary,nsubscriber,total_ops,nthread,duration,throughput\n";
 	}
 
 	uint64_t precision = 4;
