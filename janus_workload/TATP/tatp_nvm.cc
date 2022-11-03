@@ -46,22 +46,33 @@ uint64_t update_locations(uint64_t nops, uint64_t id)
 
 		// fprintf(stdout, "subId=%ld, vlr=%lu\n", subId, vlr);
 
-#ifdef _ENABLE_LOGGING
 		pthread_mutex_lock(&my_tatp_db->lock_[subId]);
+#ifdef _ENABLE_LOGGING
 
 		// Backup memory is within thread local.
 		// But don't allow other thread to change it to avoid stale backup.
-		my_tatp_db->backup_location(id, subId);
+		// my_tatp_db->backup_location(id, subId);
+		memcpy(&my_tatp_db->backup[id], &my_tatp_db->subscriber_table[subId], sizeof(subscriber_entry));
+		flush_caches(&my_tatp_db->backup[id], sizeof(subscriber_entry));
+		s_fence();
+
+		/* Set the valid bit to 1 */
+		my_tatp_db->valid[id] = 1;
+		flush_caches(&my_tatp_db->valid[id], sizeof(VALID_BIT_TYPE));
+		s_fence();
 #endif
 
 		my_tatp_db->update_location(subId, vlr);
 
-#ifdef _ENABLE_LOGGING
 		pthread_mutex_unlock(&my_tatp_db->lock_[subId]);
+#ifdef _ENABLE_LOGGING
 
 		// Backup memory is within thread local.
 		// Don't have to be inside the critial section.
-		my_tatp_db->discard_backup(id, subId);
+		// my_tatp_db->discard_backup(id, subId);
+		my_tatp_db->valid[id] = 0;
+		flush_caches(&my_tatp_db->valid[id], sizeof(VALID_BIT_TYPE));
+		s_fence();
 #endif
 		ops++;
 	}

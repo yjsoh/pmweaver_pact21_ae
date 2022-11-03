@@ -320,17 +320,9 @@ void TATP_DB::discard_backup(int thread_id, long subId)
 void TATP_DB::update_location(long subId, uint64_t vlr)
 {
 
-#ifndef _ENABLE_LOGGING
-	pthread_mutex_lock(&lock_[subId]);
-#endif
-
 	subscriber_table[subId].vlr_location = vlr;
 	flush_caches(&subscriber_table[subId], sizeof(subscriber_table[subId]));
 	s_fence();
-
-#ifndef _ENABLE_LOGGING
-	pthread_mutex_unlock(&lock_[subId]);
-#endif
 
 	return;
 }
