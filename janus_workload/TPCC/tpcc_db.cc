@@ -17,7 +17,6 @@ This file defines the various functions of the tpcc database
 #define TPCC_DEBUG 0
 #define NUM_RNDM_SEEDS 1280
 
-
 TPCC_DB::TPCC_DB(uint64_t nwarehouse, uint64_t nitems) : num_warehouses(nwarehouse), num_items(nitems)
 {
 	// std::cout << "Entering " << __FUNCTION__ << std::endl;

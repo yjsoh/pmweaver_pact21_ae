@@ -73,8 +73,8 @@ private:
 
 	unsigned long *rndm_seeds;
 
-	queue_t *perTxLocks;	// Array of queues of locks held by active Tx
-	pthread_mutex_t *locks; // Array of locks held by the TxEngn. RDSs acquire locks through the TxEngn
+	queue_t *perTxLocks;		   // Array of queues of locks held by active Tx
+	pthread_mutex_t *locks;		   // Array of locks held by the TxEngn. RDSs acquire locks through the TxEngn
 	struct backUpLog **backUpInst; // Pointer to per-thread log location
 	unsigned g_seed;
 

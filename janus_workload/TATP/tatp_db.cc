@@ -109,7 +109,7 @@ void TATP_DB::populate_tables(unsigned from, unsigned to)
 	std::cout << "Set False Begin (" << from * 4 << "," << to * 4 << ")\n";
 	pthread_mutex_unlock(&print_lock);
 
-	for (int i = (from / LOAD_THREADS) * 4; i < 4 *  (to / LOAD_THREADS); i++)
+	for (int i = (from / LOAD_THREADS) * 4; i < 4 * (to / LOAD_THREADS); i++)
 	{
 		access_info_table[i].valid = false;
 		special_facility_table[i].valid = false;
@@ -295,7 +295,6 @@ void TATP_DB::update_subscriber_data(int thread_id)
 
 	return;
 }
-
 
 void TATP_DB::backup_location(int thread_id, long subId)
 {
