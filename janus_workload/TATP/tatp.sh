@@ -11,10 +11,14 @@ for i in $(seq $repeats); do
 	for d in "${domain[@]}"; do
 		for b in "${binary[@]}"; do
 			# NSUBSCRIBER NOPS NTHREADS DURATION
-			sudo ./tatp.$d.$b 1000000 0 1 10
+			if [[ $d == "eadr" ]]; then
+				sudo PMEM_NO_FLUSH=1 ./tatp.$d.$b 1000000 0 1 10
+			elif [[ $d == "adr" ]]; then
+				sudo PMEM_NO_FLUSH=0 ./tatp.$d.$b 1000000 0 1 10
+			fi
 		done
 	done
 
-	sudo ./agr_tatp/TATP_39_fence 1000000 0 1 10
+	# sudo ./agr_tatp/TATP_39_fence 1000000 0 1 10
 	yj-noti "$i/$repeats"
 done
