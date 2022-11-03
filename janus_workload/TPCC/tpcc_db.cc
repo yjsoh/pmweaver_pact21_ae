@@ -98,7 +98,7 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	rndm_seeds = new unsigned long[NUM_RNDM_SEEDS];
 	for (int i = 0; i < NUM_RNDM_SEEDS; i++)
 	{
-		srand(i);
+		// srand(i);
 		rndm_seeds[i] = rand_local(1, NUM_RNDM_SEEDS * 10);
 	}
 }
@@ -365,7 +365,7 @@ void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int
 	order_line[indx].ol_delivery_d = 0;
 	order_line[indx].ol_amount = rand_local(1, 999999) / 100.0;
 	order_line[indx].ol_quantity = 5.0;
-	random_a_string(24, 24, order_line[indx].ol_dist_info);
+	// random_a_string(24, 24, order_line[indx].ol_dist_info);
 
 	backUpInst[tid]->fill_new_order_line_entry_valid = indx;
 	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
@@ -492,7 +492,7 @@ void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &sou
 
 /* Transactions*/
 
-void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
+void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids, int ol_cnt)
 {
 
 	// warehouse
@@ -519,30 +519,6 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id)
 	// order
 	int o_indx = d_indx * N_ORDER_PER_DISTRICT + (d_o_id - 1) % N_ORDER_PER_DISTRICT;
 
-	// Create orderline
-	int ol_cnt = get_random(tid, 5, 15);
-	int item_ids[15];
-	for (int i = 0; i < ol_cnt; i++)
-	{
-		int new_item_id;
-		bool match;
-		do
-		{
-			match = false;
-			new_item_id = get_random(tid, 1, num_items);
-			for (int j = 0; j < i; j++)
-			{
-				if (new_item_id == item_ids[j])
-				{
-					match = true;
-					break;
-				}
-			}
-		} while (match);
-		item_ids[i] = new_item_id;
-	}
-
-	std::sort(item_ids, item_ids + ol_cnt);
 	/*
 	if(TPCC_DEBUG)
 	  // std::cout<<"**NOTx** ol_cnt: "<<ol_cnt<<std::endl;

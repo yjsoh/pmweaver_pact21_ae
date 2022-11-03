@@ -118,7 +118,7 @@ public:
 	void copy_order_line_info(order_line_entry &dest, order_line_entry &source);
 
 	/* Actual Transactions */
-	void new_order_tx(int tid, int w_id, int d_id, int c_id);
+	void new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids, int ol_cnt);
 	void update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt);
 	void update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float &amount, int itr);
 

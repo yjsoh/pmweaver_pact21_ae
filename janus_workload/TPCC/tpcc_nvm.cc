@@ -20,8 +20,8 @@ This file models the TPCC benchmark.
 #include "tpcc_db.h"
 
 std::atomic<bool> stop;
-uint64_t new_orders(uint64_t tid, uint64_t nwarehouse);
-uint64_t new_orders_nops(uint64_t tid, uint64_t nwarehouse, uint64_t nops);
+uint64_t new_orders(uint64_t tid, uint64_t nwarehouse, uint64_t num_items);
+uint64_t new_orders_nops(uint64_t tid, uint64_t nwarehouse, uint64_t nops, uint64_t num_items);
 
 /*
  *   File: barrier.h
@@ -123,6 +123,7 @@ struct thread_data
 	uint64_t ops;
 	uint64_t nops; // if execute exactly nops
 	uint64_t nwarehouse;
+	uint64_t num_items;
 };
 
 /* An operation every thread runs during the execution */
@@ -131,6 +132,7 @@ void *threadTimedRun(void *arg)
 	struct thread_data *tData = (struct thread_data *)arg;
 	uint64_t tid = tData->tid;
 	uint64_t nwarehouse = tData->nwarehouse;
+	uint64_t num_items = tData->num_items;
 
 	// Set CPU affinity
 	set_cpu(tid);
@@ -138,7 +140,7 @@ void *threadTimedRun(void *arg)
 	barrier_cross(&init_barrier);
 	barrier_cross(&barrier_global);
 
-	tData->ops = new_orders(tid, nwarehouse);
+	tData->ops = new_orders(tid, nwarehouse, num_items);
 
 	return NULL;
 }
@@ -149,6 +151,7 @@ void *threadOpRun(void *arg)
 	uint64_t tid = tData->tid;
 	uint64_t nops = tData->nops;
 	uint64_t nwarehouse = tData->nwarehouse;
+	uint64_t num_items = tData->num_items;
 
 	// Set CPU affinity
 	set_cpu(tid);
@@ -156,7 +159,7 @@ void *threadOpRun(void *arg)
 	barrier_cross(&init_barrier);
 	barrier_cross(&barrier_global);
 
-	tData->ops = new_orders_nops(tid, nops, nwarehouse);
+	tData->ops = new_orders_nops(tid, nops, nwarehouse, num_items);
 
 	return NULL;
 }
@@ -180,6 +183,7 @@ void run(char *argv[], uint64_t nwarehouse, uint64_t nitems, uint64_t nthreads, 
 		allThreadsData[i].ops = 0;
 		allThreadsData[i].nops = nops;
 		allThreadsData[i].nwarehouse = nwarehouse;
+		allThreadsData[i].num_items = nitems;
 	}
 	stop = (false);
 
@@ -283,18 +287,51 @@ void deinit_db(uint64_t nthreads)
 #endif
 }
 
-uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse)
+#define OL_MIN 5
+#define OL_RANGE 10
+
+uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse, uint64_t num_items)
 {
-	int w_id, d_id, c_id;
+	long int rand_val;
+	int w_id, d_id, c_id, ol_cnt;
+	int item_ids[15];
 	uint64_t ops = 0;
 	fprintf(stderr, "Execution Started\n");
+	int new_item_id;
+	bool match;
+	int i;
 	for (uint64_t i = 0; i < nops; i++)
 	{
-		w_id = tpcc_db->get_random(tid, 1, nwarehouse);
-		d_id = tpcc_db->get_random(tid, 1, N_DISTRICT_PER_WAREHOUSE);
-		c_id = tpcc_db->get_random(tid, 1, N_CUSTOMER_PER_DISTRICT);
+		rand_val = random();
+		w_id = rand_val % nwarehouse;					   // 4 bits
+		d_id = (rand_val >> 4) % N_DISTRICT_PER_WAREHOUSE; // 4 bits
+		c_id = (rand_val >> 8) % N_CUSTOMER_PER_DISTRICT;  // 4 bits
 
-		tpcc_db->new_order_tx(tid, w_id, d_id, c_id);
+		// Create orderline
+		// ol_cnt = get_random(tid, 5, 15);
+		ol_cnt = (rand_val >> 12) % OL_RANGE + OL_MIN; // 4 bits
+		for (i = 0; i < ol_cnt; i++)
+		{
+			do
+			{
+				match = false;
+				new_item_id = random() % num_items;
+				// new_item_id = (rand_val >> (16 + i) % num_items;
+				for (int j = 0; j < i; j++)
+				{
+					if (new_item_id == item_ids[j])
+					{
+						match = true;
+						break;
+					}
+				}
+			} while (match);
+			item_ids[i] = new_item_id;
+		}
+
+		// std::sort(item_ids, item_ids + ol_cnt);
+
+		tpcc_db->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt);
 
 		ops++;
 	}
@@ -303,21 +340,50 @@ uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse)
 	return ops;
 }
 
-uint64_t new_orders(uint64_t tid, uint64_t nwarehouse)
+uint64_t new_orders(uint64_t tid, uint64_t nwarehouse, uint64_t num_items)
 {
-	int w_id, d_id, c_id;
+	long int rand_val;
+	int w_id, d_id, c_id, ol_cnt;
+	int item_ids[15];
 	uint64_t ops = 0;
-	fprintf(stderr, "Running received\n");
+	fprintf(stderr, "Running received. RAND_MAX=%d\n", RAND_MAX);
 	pthread_mutex_t tmp;
 	pthread_mutex_init(&tmp, NULL);
 	pthread_mutex_lock(&tmp);
+	int new_item_id;
+	bool match;
+	int i;
 	while (!stop)
 	{
-		w_id = tpcc_db->get_random(tid, 1, nwarehouse);
-		d_id = tpcc_db->get_random(tid, 1, N_DISTRICT_PER_WAREHOUSE);
-		c_id = tpcc_db->get_random(tid, 1, N_CUSTOMER_PER_DISTRICT);
+		rand_val = random();
+		w_id = (((uint64_t)rand_val) % nwarehouse) + 1;			 // 4 bits
+		d_id = ((rand_val >> 4) % N_DISTRICT_PER_WAREHOUSE) + 1; // 4 bits
+		c_id = ((rand_val >> 8) % N_CUSTOMER_PER_DISTRICT) + 1;	 // 4 bits
 
-		tpcc_db->new_order_tx(tid, w_id, d_id, c_id);
+		// Create orderline
+		// ol_cnt = get_random(tid, 5, 15);
+		ol_cnt = (rand_val >> 12) % OL_RANGE + OL_MIN; // 4 bits
+		for (i = 0; i < ol_cnt; i++)
+		{
+			do
+			{
+				match = false;
+				new_item_id = (random() % num_items) + 1;
+				for (int j = 0; j < i; j++)
+				{
+					if (new_item_id == item_ids[j])
+					{
+						match = true;
+						break;
+					}
+				}
+			} while (match);
+			item_ids[i] = new_item_id;
+		}
+
+		// std::sort(item_ids, item_ids + ol_cnt);
+
+		tpcc_db->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt);
 
 		ops++;
 	}
