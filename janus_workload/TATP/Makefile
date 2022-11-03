@@ -5,7 +5,7 @@ CLOBBERCLANGPP:=~/agr/Clobber-NVM/build/bin/clang++
 CLOBBERLOGCLANG:=~/agr/Clobber-NVM/clobberlogclang
 CLOBBERLOGCLANGPP:=~/agr/Clobber-NVM/clobberlogclangpp
 
-CFLAGS=-O2 -g -mclwb -D_SKIP_INITIALIZATION
+CFLAGS=-O1 -g -mclwb -D_SKIP_INITIALIZATION
 CLOBBER_CFLAGS=-mclwb
 SOURCES=tatp_db.cc tatp_nvm.cc common.cc
 LDLIBS:=-lpmem -pthread -lpmemobj
