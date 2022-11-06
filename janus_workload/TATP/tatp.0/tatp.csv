@@ -1,0 +1,9 @@
+binary,nsubscriber,total_ops,nthread,duration,throughput
+./tatp.adr.clobber,1000000,11565923,1,10,1156592
+./tatp.adr.undo,1000000,4631967,1,10,463196
+./tatp.eadr.clobber,1000000,14713089,1,10,1471308
+./tatp.eadr.undo,1000000,22935044,1,10,2293504
+./tatp.adr.clobber,1000000,11347604,1,10,1134760
+./tatp.adr.undo,1000000,4632469,1,10,463246
+./tatp.eadr.clobber,1000000,15180149,1,10,1518014
+./tatp.eadr.undo,1000000,22882290,1,10,2288229
