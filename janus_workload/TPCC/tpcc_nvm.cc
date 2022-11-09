@@ -23,6 +23,11 @@ std::atomic<bool> stop;
 uint64_t new_orders(uint64_t tid, uint64_t nwarehouse, uint64_t num_items);
 uint64_t new_orders_nops(uint64_t tid, uint64_t nwarehouse, uint64_t nops, uint64_t num_items);
 
+#ifdef _ENABLE_LIBPMEMOBJ
+pmem::obj::pool<TPCC_DB> pool;
+pmem::obj::persistent_ptr<TPCC_DB> table;
+#endif
+
 /*
  *   File: barrier.h
  *   Author: Vasileios Trigonakis <vasileios.trigonakis@epfl.ch>,
@@ -273,17 +278,54 @@ TPCC_DB *tpcc_db; // array of TPCC_DB, array length == nthreads
 
 void init_db(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
+#ifdef _ENABLE_LIBPMEMOBJ
+	try
+	{
+		if (access(PMDK_POOL_FILE, F_OK) != 0)
+		{
+
+			pool = pmem::obj::pool<TPCC_DB>::create(
+				PMDK_POOL_FILE, "TPCC", PMDK_POOL_SIZE, CREATE_MODE_RW);
+		}
+		else
+		{
+			pool = pmem::obj::pool<TPCC_DB>::open(PMDK_POOL_FILE, "TPCC");
+		}
+		table = pool.root();
+	}
+	catch (const pmem::pool_error &e)
+	{
+		std::cerr << "Exception: " << e.what() << std::endl;
+		return;
+	}
+	catch (const pmem::transaction_error &e)
+	{
+		std::cerr << "Exception: " << e.what() << std::endl;
+		return;
+	}
+#else
+#endif
+
 	tpcc_db = new TPCC_DB(nwarehouse, nitems);
+
+#ifdef _ENABLE_LIBPMEMOBJ
+	table->initialize(nthreads, nwarehouse, nitems);
+	table->populate_tables();
+#else
 	tpcc_db->initialize(nthreads, nwarehouse, nitems);
 	tpcc_db->populate_tables();
+#endif
 }
 
 void deinit_db(uint64_t nthreads)
 {
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
 	tpcc_db->deinitialize();
 	delete tpcc_db;
 #ifdef _VOLATILE_TPCC_DB
 	free(tpcc_db);
+#endif
 #endif
 }
 
@@ -330,8 +372,31 @@ uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse, uint6
 		}
 
 		// std::sort(item_ids, item_ids + ol_cnt);
+#ifdef _ENABLE_LIBPMEMOBJ
+try
+		{
+			// pmem::obj::transaction::run(pool, [&]
+			// table->update_location(subId, vlr);
+			// 							{ table->update_location(subId, vlr); });
+			pmem::obj::transaction::run(pool, [&]
+										{ table->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt); });
+		}
+		catch (const std::runtime_error &e)
+		{
+			std::cerr << "Exception: " << e.what()
+					  << std::endl;
+			return 1;
+		}
+		catch (const std::logic_error &e)
+		{
+			std::cerr << "Exception: " << e.what()
+					  << std::endl;
+			return 1;
+		}
 
+#else
 		tpcc_db->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt);
+#endif
 
 		ops++;
 	}
@@ -383,7 +448,31 @@ uint64_t new_orders(uint64_t tid, uint64_t nwarehouse, uint64_t num_items)
 
 		// std::sort(item_ids, item_ids + ol_cnt);
 
+#ifdef _ENABLE_LIBPMEMOBJ
+try
+		{
+			// pmem::obj::transaction::run(pool, [&]
+			// table->update_location(subId, vlr);
+			// 							{ table->update_location(subId, vlr); });
+			pmem::obj::transaction::run(pool, [&]
+										{ table->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt); });
+		}
+		catch (const std::runtime_error &e)
+		{
+			std::cerr << "Exception: " << e.what()
+					  << std::endl;
+			return 1;
+		}
+		catch (const std::logic_error &e)
+		{
+			std::cerr << "Exception: " << e.what()
+					  << std::endl;
+			return 1;
+		}
+
+#else
 		tpcc_db->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt);
+#endif
 
 		ops++;
 	}

@@ -16,7 +16,7 @@ LDFLAGS_CLOBBER:=-Wl,--wrap=pthread_join -Wl,--wrap=pthread_create\
 
 EADR_FLAG:=-D PMEM_NO_FLUSH=1
 
-all: tpcc.adr.undo tpcc.eadr.undo tpcc.adr.clobber tpcc.eadr.clobber
+all: tpcc.adr.undo tpcc.eadr.undo tpcc.adr.pmdk tpcc.eadr.pmdk tpcc.adr.clobber tpcc.eadr.clobber
 
 admin_pop.o: wrap/admin_pop.c
 	$(CLOBBERCLANGPP) $(CFLAGS) -c -o $@ $^
@@ -32,6 +32,12 @@ tpcc.adr.undo: $(SOURCES)
 
 tpcc.eadr.undo: $(SOURCES)
 	$(CXX) $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $^ -D_ENABLE_LOGGING -o $@
+
+tpcc.adr.pmdk: $(SOURCES)
+	$(CXX) $(CFLAGS) $(LDLIBS) $^ -D_ENABLE_LIBPMEMOBJ -o $@
+
+tpcc.eadr.pmdk: $(SOURCES)
+	$(CXX) $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $^ -D_ENABLE_LIBPMEMOBJ -o $@
 
 tpcc.adr.clobber: $(SOURCES) clobber.o context.o admin_pop.o
 	$(CLOBBERLOGCLANGPP) -c $(CLOBBER_CFLAGS) tpcc_db.cc -o tpcc_db.o

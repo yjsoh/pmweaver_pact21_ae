@@ -30,6 +30,8 @@ TPCC_DB::TPCC_DB(uint64_t nwarehouse, uint64_t nitems) : num_warehouses(nwarehou
 
 void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 {
+	num_warehouses = nwarehouse;
+	num_items = nitems;
 	uint64_t num_districts = N_DISTRICT_PER_WAREHOUSE * nwarehouse;
 	uint64_t num_customers = N_CUSTOMER_PER_DISTRICT * num_districts;
 	uint64_t num_stocks = nwarehouse * nitems;
@@ -54,7 +56,28 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 		total_mem += (sizeof(struct backUpLog));
 	}
 	std::cout << "Total Allocated Memory: " << total_mem / (1UL << 20) << " MB \n";
-
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::run(pool, [&]
+								{
+	warehouse = pmem::obj::make_persistent<warehouse_entry[]>(nwarehouse);
+	district = pmem::obj::make_persistent<district_entry[]>(num_districts);
+	customer = pmem::obj::make_persistent<customer_entry[]>(num_customers);
+	stock = pmem::obj::make_persistent<stock_entry[]>(num_stocks);
+	item = pmem::obj::make_persistent<item_entry[]>(nitems);
+	history = pmem::obj::make_persistent<history_entry[]>(num_histories);
+	order = pmem::obj::make_persistent<order_entry[]>(num_orders);
+	order_line = pmem::obj::make_persistent<order_line_entry[]>(num_order_lines);
+	new_order = pmem::obj::make_persistent<new_order_entry[]>(num_new_orders); });
+	assert(warehouse.get() != NULL);
+	assert(district.get() != NULL);
+	assert(customer.get() != NULL);
+	assert(stock.get() != NULL);
+	assert(item.get() != NULL);
+	assert(history.get() != NULL);
+	assert(order.get() != NULL);
+	assert(order_line.get() != NULL);
+	assert(new_order.get() != NULL);
+#else
 	init_pmalloc(total_mem);
 	warehouse = (warehouse_entry *)pmalloc(nwarehouse * sizeof(warehouse_entry));
 	district = (district_entry *)pmalloc(num_districts * sizeof(district_entry));
@@ -70,6 +93,7 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	{
 		backUpInst[i] = (struct backUpLog *)pmalloc(sizeof(struct backUpLog));
 	}
+#endif
 
 	for (int i = 0; i < 3000; i++)
 	{
@@ -349,8 +373,11 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	new_order[indx].no_o_id = _no_o_id;
 	new_order[indx].no_d_id = _no_d_id;
 	new_order[indx].no_w_id = _no_w_id;
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
 	flush_caches((void *)&new_order[indx], (unsigned)sizeof(new_order[indx]));
 	s_fence();
+#endif
 }
 
 void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int _ol_o_id, int ol_num, int ol_i_id)
@@ -367,9 +394,12 @@ void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int
 	order_line[indx].ol_quantity = 5.0;
 	// random_a_string(24, 24, order_line[indx].ol_dist_info);
 
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
 	backUpInst[tid]->fill_new_order_line_entry_valid = indx;
 	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
 	s_fence();
+#endif
 }
 
 void TPCC_DB::fill_time(long long &time_slot)
@@ -491,7 +521,7 @@ void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &sou
 }
 
 /* Transactions*/
-
+#ifdef _ENABLE_LIBPMEMOBJ
 void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids, int ol_cnt)
 {
 
@@ -500,7 +530,46 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids,
 
 	// district
 	int d_indx = w_indx * N_DISTRICT_PER_WAREHOUSE + (d_id - 1);
-	int d_o_id = district[d_indx].d_next_o_id % 15;
+	int d_o_id = (district[d_indx].d_next_o_id % 15) + 1;
+
+	// customer
+	int c_indx = d_indx * N_CUSTOMER_PER_DISTRICT + (c_id - 1);
+
+	// new order
+	int no_indx = d_indx * N_NEW_ORDER_PER_DISTRICT + (d_o_id - 2101) % N_NEW_ORDER_PER_DISTRICT;
+
+	// order
+	int o_indx = d_indx * N_ORDER_PER_DISTRICT + (d_o_id - 1) % N_ORDER_PER_DISTRICT;
+
+	district[d_indx].d_next_o_id++;
+
+	// ~= create_neworder
+	fill_new_order_entry(w_id, d_id, d_o_id, tid);
+
+	// ~= create_order
+	update_order_entry(tid, w_id, d_id, d_o_id, c_id, ol_cnt);
+
+	float total_amount = 0.0;
+	for (int i = 0; i < ol_cnt; i++)
+	{
+		// ~= modify_stock
+		update_stock_entry(tid, w_id, item_ids[i], d_id, total_amount, i);
+
+		fill_new_order_line_entry(tid, w_id, d_id, d_o_id, i, item_ids[i]);
+	}
+
+	return;
+}
+#else
+void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids, int ol_cnt)
+{
+
+	// warehouse
+	int w_indx = (w_id - 1);
+
+	// district
+	int d_indx = w_indx * N_DISTRICT_PER_WAREHOUSE + (d_id - 1);
+	int d_o_id = (district[d_indx].d_next_o_id % 15) + 1;
 	/*
 	queue_t reqLocks;
 	reqLocks.push(d_indx); // Lock for district
@@ -617,7 +686,7 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids,
 
 	return;
 }
-
+#endif
 void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt)
 {
 	int indx = (_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT + (_d_id - 1) * N_ORDER_PER_DISTRICT + (_o_id - 1) % N_ORDER_PER_DISTRICT;
@@ -645,8 +714,11 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 	order[indx].o_carrier_id = 0;
 	order[indx].o_ol_cnt = _ol_cnt;
 	order[indx].o_all_local = 1;
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
 	flush_caches((void *)&order[indx], (unsigned)sizeof(order[indx]));
 	s_fence();
+#endif
 }
 
 void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float &amount, int itr)
@@ -677,8 +749,11 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 
 	stock[indx].s_ytd += ol_quantity;
 	stock[indx].s_order_cnt += 1;
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
 	flush_caches((void *)&stock[indx], (unsigned)sizeof(stock[indx]));
 	s_fence();
+#endif
 
 	// Korakit
 	// volatile

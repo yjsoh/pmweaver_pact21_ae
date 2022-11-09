@@ -11,6 +11,21 @@ This file declares the tpcc database and the accesor transactions.
 #include <pthread.h>
 #include <cstdlib>
 
+class TPCC_DB;
+#ifdef _ENABLE_LIBPMEMOBJ
+#include <libpmemobj++/make_persistent.hpp>
+#include <libpmemobj++/p.hpp>
+#include <libpmemobj++/persistent_ptr.hpp>
+#include <libpmemobj++/pool.hpp>
+#include <libpmemobj/tx_base.h>
+#include <libpmemobj++/transaction.hpp>
+#define CREATE_MODE_RW (S_IWUSR | S_IRUSR)
+extern pmem::obj::pool<TPCC_DB> pool;
+extern pmem::obj::persistent_ptr<TPCC_DB> table;
+#define PMDK_POOL_FILE "/mnt/ramdisk/tpcc.pmdk.pool"
+#define PMDK_POOL_SIZE (1UL << 32)
+#endif
+
 #define N_DISTRICT_PER_WAREHOUSE 10
 #define N_CUSTOMER_PER_DISTRICT 3000
 #define N_ORDER_PER_DISTRICT 3000
@@ -57,6 +72,17 @@ private:
 	short num_warehouses;
 	uint64_t num_items;
 	short random_3000[3000];
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::persistent_ptr<warehouse_entry[]> warehouse;
+	pmem::obj::persistent_ptr<district_entry[]> district;
+	pmem::obj::persistent_ptr<customer_entry[]> customer;
+	pmem::obj::persistent_ptr<stock_entry[]> stock;
+	pmem::obj::persistent_ptr<history_entry[]> history;
+	pmem::obj::persistent_ptr<order_entry[]> order;
+	pmem::obj::persistent_ptr<new_order_entry[]> new_order;
+	pmem::obj::persistent_ptr<order_line_entry[]> order_line;
+	pmem::obj::persistent_ptr<item_entry[]> item;
+#else
 	warehouse_entry *warehouse;
 	district_entry *district;
 	customer_entry *customer;
@@ -70,7 +96,7 @@ private:
 
 	// Fixed size table
 	item_entry *item;
-
+#endif
 	unsigned long *rndm_seeds;
 
 	queue_t *perTxLocks;		   // Array of queues of locks held by active Tx
