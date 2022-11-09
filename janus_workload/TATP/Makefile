@@ -16,7 +16,7 @@ LDFLAGS_CLOBBER:=-Wl,--wrap=pthread_join -Wl,--wrap=pthread_create\
 
 EADR_FLAG:=-D PMEM_NO_FLUSH=1
 
-all: tatp.adr.undo tatp.eadr.undo tatp.adr.clobber tatp.eadr.clobber
+all: tatp.adr.undo tatp.eadr.undo tatp.adr.pmdk tatp.eadr.pmdk tatp.adr.clobber tatp.eadr.clobber
 
 admin_pop.o: wrap/admin_pop.c
 	$(CLOBBERCLANGPP) $(CFLAGS) -c -o $@ $^
@@ -32,6 +32,12 @@ tatp.adr.undo: $(SOURCES)
 
 tatp.eadr.undo: $(SOURCES)
 	$(CXX) $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $^ -D_ENABLE_LOGGING -o $@
+
+tatp.adr.pmdk: $(SOURCES)
+	$(CXX) $(CFLAGS) $(LDLIBS) $^ -D_ENABLE_LIBPMEMOBJ -o $@
+
+tatp.eadr.pmdk: $(SOURCES)
+	$(CXX) $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $^ -D_ENABLE_LIBPMEMOBJ -o $@
 
 tatp.adr.clobber: $(SOURCES) clobber.o context.o admin_pop.o
 	$(CLOBBERLOGCLANGPP) -c $(CLOBBER_CFLAGS) tatp_db.cc -o tatp_db.o

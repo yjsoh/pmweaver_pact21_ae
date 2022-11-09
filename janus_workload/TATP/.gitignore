@@ -1,6 +1,8 @@
 *.o
 tatp.adr.undo
 tatp.eadr.undo
+tatp.adr.pmdk
+tatp.eadr.pmdk
 tatp.adr.clobber
 tatp.eadr.clobber
 agr_tatp/

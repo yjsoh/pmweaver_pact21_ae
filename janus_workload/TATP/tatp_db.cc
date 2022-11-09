@@ -37,6 +37,14 @@ void TATP_DB::initialize(unsigned num_subscribers, int nthreads)
 
 	size_t total_alloc_size = stsz + aitsz + sftsz + cftsz + backupsz + validsz;
 
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::run(pool, [&]
+								{
+	subscriber_table = pmem::obj::make_persistent<subscriber_entry[]>(num_subscribers);
+	access_info_table = pmem::obj::make_persistent<access_info_entry[]>(4 * num_subscribers);
+	special_facility_table = pmem::obj::make_persistent<special_facility_entry[]>(4 * num_subscribers);
+	call_forwarding_table = pmem::obj::make_persistent<call_forwarding_entry[]>(3 * 4 * num_subscribers); });
+#else
 	void *pool = pmalloc(total_alloc_size);
 	std::cout << "Allocating aligned_malloc of " << (double)(total_alloc_size) / (1UL << 20) << " MB\n";
 
@@ -54,7 +62,7 @@ void TATP_DB::initialize(unsigned num_subscribers, int nthreads)
 
 	backup = (subscriber_entry *)((size_t)pool + stsz + aitsz + sftsz + cftsz);
 	valid = (VALID_BIT_TYPE *)((size_t)pool + stsz + aitsz + sftsz + cftsz + backupsz);
-
+#endif
 	lock_ = (pthread_mutex_t *)malloc(num_subscribers * sizeof(pthread_mutex_t));
 
 	pthread_mutex_init(&print_lock, NULL);
@@ -319,11 +327,13 @@ void TATP_DB::discard_backup(int thread_id, long subId)
 
 void TATP_DB::update_location(long subId, uint64_t vlr)
 {
-
 	subscriber_table[subId].vlr_location = vlr;
+#ifdef _ENABLE_LIBPMEMOBJ
+	// no flush or sfence
+#else
 	flush_caches(&subscriber_table[subId], sizeof(subscriber_table[subId]));
 	s_fence();
-
+#endif
 	return;
 }
 

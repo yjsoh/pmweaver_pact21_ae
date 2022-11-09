@@ -21,6 +21,18 @@ This file is the TATP benchmark, performs various transactions as per the specif
 #include <iomanip>
 #include <math.h>
 #include "common.h"
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <libpmemobj++/make_persistent.hpp>
+#include <libpmemobj++/p.hpp>
+#include <libpmemobj++/persistent_ptr.hpp>
+#include <libpmemobj++/pool.hpp>
+#include <libpmemobj++/transaction.hpp>
+#include <stdexcept>
+#include <string>
+#include <sys/stat.h>
 
 std::atomic<uint64_t> count;
 std::atomic<bool> stop;
@@ -28,12 +40,82 @@ std::atomic<bool> stop;
 TATP_DB *my_tatp_db;
 void *pop = NULL;
 
+#ifdef _ENABLE_LIBPMEMOBJ
+pmem::obj::pool<TATP_DB> pool;
+pmem::obj::persistent_ptr<TATP_DB> table;
+#endif
+
 void init_db(uint64_t num_subscribers, uint64_t nthreads)
 {
+#ifdef _ENABLE_LIBPMEMOBJ
+	try
+	{
+		if (access(PMDK_POOL_FILE, F_OK) != 0)
+		{
+
+			pool = pmem::obj::pool<TATP_DB>::create(
+				PMDK_POOL_FILE, "TATP", PMDK_POOL_SIZE, CREATE_MODE_RW);
+		}
+		else
+		{
+			pool = pmem::obj::pool<TATP_DB>::open(PMDK_POOL_FILE, "TATP");
+		}
+		table = pool.root();
+	}
+	catch (const pmem::pool_error &e)
+	{
+		std::cerr << "Exception: " << e.what() << std::endl;
+		return;
+	}
+	catch (const pmem::transaction_error &e)
+	{
+		std::cerr << "Exception: " << e.what() << std::endl;
+		return;
+	}
+	table->initialize(num_subscribers, nthreads);
+#endif
 	my_tatp_db = new TATP_DB(num_subscribers);
 	my_tatp_db->initialize(num_subscribers, nthreads);
 }
 
+#ifdef _ENABLE_LIBPMEMOBJ
+uint64_t update_locations(uint64_t nops, uint64_t id)
+{
+	uint64_t ops = 0;
+	fprintf(stdout, "Running received.\n");
+	while (!stop)
+	{
+
+		long subId = my_tatp_db->get_random_s_id(id);
+		uint64_t vlr = my_tatp_db->get_random_vlr(id);
+		try
+		{
+			// pmem::obj::transaction::run(pool, [&]
+			table->update_location(subId, vlr);
+			// 							{ table->update_location(subId, vlr); });
+			// pmem::obj::transaction::run(pool, [&]
+			// 							{ table.get()->subscriber_table[subId].vlr_location = vlr; });
+		}
+		catch (const std::runtime_error &e)
+		{
+			std::cerr << "Exception: " << e.what()
+					  << std::endl;
+			return 1;
+		}
+		catch (const std::logic_error &e)
+		{
+			std::cerr << "Exception: " << e.what()
+					  << std::endl;
+			return 1;
+		}
+		ops++;
+	}
+
+	fprintf(stdout, "Stop received. Returning: %lu\n", ops);
+
+	return ops;
+}
+#else
 uint64_t update_locations(uint64_t nops, uint64_t id)
 {
 	uint64_t ops = 0;
@@ -81,7 +163,7 @@ uint64_t update_locations(uint64_t nops, uint64_t id)
 
 	return ops;
 }
-
+#endif
 // from stackoverflow: https://stackoverflow.com/questions/68804469/subtract-two-timespec-objects-find-difference-in-time-or-duration
 struct timespec diff_timespec(const struct timespec *time1,
 							  const struct timespec *time0)

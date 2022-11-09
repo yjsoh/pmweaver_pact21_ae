@@ -17,22 +17,49 @@ the database.
 typedef uint64_t VALID_BIT_TYPE;
 #define LOAD_THREADS 1
 
+class TATP_DB;
+
+#ifdef _ENABLE_LIBPMEMOBJ
+#include <libpmemobj++/make_persistent.hpp>
+#include <libpmemobj++/p.hpp>
+#include <libpmemobj++/persistent_ptr.hpp>
+#include <libpmemobj++/pool.hpp>
+#include <libpmemobj/tx_base.h>
+#include <libpmemobj++/transaction.hpp>
+#define CREATE_MODE_RW (S_IWUSR | S_IRUSR)
+extern pmem::obj::pool<TATP_DB> pool;
+extern pmem::obj::persistent_ptr<TATP_DB> table;
+#define PMDK_POOL_FILE "/mnt/ramdisk/tatp.pmdk.pool"
+#define PMDK_POOL_SIZE (1UL << 32)
+#endif
+
 class TATP_DB
 {
 
 private:
 	long total_subscribers; // Holds the number of subscribers
 	int num_threads;
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::persistent_ptr<access_info_entry[]> access_info_table;			// Pointer to the access info table
+	pmem::obj::persistent_ptr<special_facility_entry[]> special_facility_table; // Pointer to the special facility table
+	pmem::obj::persistent_ptr<call_forwarding_entry[]> call_forwarding_table;	// Pointer to the call forwarding table
+#else
 	access_info_entry *access_info_table;			// Pointer to the access info table
 	special_facility_entry *special_facility_table; // Pointer to the special facility table
 	call_forwarding_entry *call_forwarding_table;	// Pointer to the call forwarding table
+#endif
 	unsigned long *subscriber_rndm_seeds;
 	unsigned long *vlr_rndm_seeds;
 	unsigned long *rndm_seeds;
 
 public:
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::persistent_ptr<subscriber_entry[]> subscriber_table;
+	pmem::obj::persistent_ptr<subscriber_entry> backup;
+#else
 	subscriber_entry *subscriber_table; // Pointer to the subscriber table
 	subscriber_entry *backup;
+#endif
 	VALID_BIT_TYPE *valid;
 	pthread_mutex_t *lock_;			   // Lock per subscriber to protect the update
 	TATP_DB(unsigned num_subscribers); // Constructs and sizes tables as per num_subscribers
