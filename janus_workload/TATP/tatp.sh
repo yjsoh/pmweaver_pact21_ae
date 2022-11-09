@@ -1,7 +1,7 @@
 #!/bin/bash
 
 domain=(adr eadr)
-binary=(clobber undo)
+binary=(clobber undo pmdk)
 repeats=10
 
 # mkdir -p agr_tatp

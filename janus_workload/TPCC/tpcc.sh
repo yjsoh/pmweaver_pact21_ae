@@ -1,7 +1,7 @@
 #!/bin/bash
 
 domain=(adr eadr)
-binary=(clobber undo)
+binary=(clobber undo pmdk)
 repeats=10
 arg="10 100000 1 10 0"
 
