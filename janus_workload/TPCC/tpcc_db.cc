@@ -352,56 +352,6 @@ void TPCC_DB::fill_order_line_entry(int _ol_w_id, int _ol_d_id, int _ol_o_id, in
 	random_a_string(24, 24, order_line[indx].ol_dist_info);
 }
 
-void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int tid)
-{
-	int indx = (_no_w_id - 1) * 10 * 900 + (_no_d_id - 1) * 900 + (_no_o_id - 2101) % 900;
-	indx = indx < 0 ? -indx : indx;
-	indx = indx % (num_warehouses * 10 * 900);
-
-	// do backup
-#ifdef _ENABLE_LOGGING
-	backUpInst[tid]->fill_new_order_entry_indx = indx;
-	copy_new_order_info(backUpInst[tid]->new_order_entry_back, new_order[indx]);
-	flush_caches((void *)&backUpInst[tid]->fill_new_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->fill_new_order_entry_indx));
-	flush_caches((void *)&backUpInst[tid]->new_order_entry_back, (unsigned)sizeof(backUpInst[tid]->new_order_entry_back));
-	s_fence();
-	backUpInst[tid]->fill_new_order_entry_back_valid = 1;
-	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
-	s_fence();
-#endif
-
-	new_order[indx].no_o_id = _no_o_id;
-	new_order[indx].no_d_id = _no_d_id;
-	new_order[indx].no_w_id = _no_w_id;
-#ifdef _ENABLE_LIBPMEMOBJ
-#else
-	flush_caches((void *)&new_order[indx], (unsigned)sizeof(new_order[indx]));
-	s_fence();
-#endif
-}
-
-void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int _ol_o_id, int ol_num, int ol_i_id)
-{
-	int indx = (_ol_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT * N_ORDER_LINE_PER_ORDER + (_ol_d_id - 1) * N_ORDER_PER_DISTRICT * N_ORDER_LINE_PER_ORDER + (_ol_o_id - 1) * N_ORDER_LINE_PER_ORDER + ol_num;
-	order_line[indx].ol_o_id = _ol_o_id;
-	order_line[indx].ol_d_id = _ol_d_id;
-	order_line[indx].ol_w_id = _ol_w_id;
-	order_line[indx].ol_number = ol_num;
-	order_line[indx].ol_i_id = ol_i_id;
-	order_line[indx].ol_supply_w_id = _ol_w_id;
-	order_line[indx].ol_delivery_d = 0;
-	order_line[indx].ol_amount = rand_local(1, 999999) / 100.0;
-	order_line[indx].ol_quantity = 5.0;
-	// random_a_string(24, 24, order_line[indx].ol_dist_info);
-
-#ifdef _ENABLE_LIBPMEMOBJ
-#else
-	backUpInst[tid]->fill_new_order_line_entry_valid = indx;
-	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
-	s_fence();
-#endif
-}
-
 void TPCC_DB::fill_time(long long &time_slot)
 {
 	// FIXME: put correct time
@@ -687,6 +637,35 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids,
 	return;
 }
 #endif
+
+void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int tid)
+{
+	int indx = (_no_w_id - 1) * 10 * 900 + (_no_d_id - 1) * 900 + (_no_o_id - 2101) % 900;
+	indx = indx < 0 ? -indx : indx;
+	indx = indx % (num_warehouses * 10 * 900);
+
+	// do backup
+#ifdef _ENABLE_LOGGING
+	backUpInst[tid]->fill_new_order_entry_indx = indx;
+	copy_new_order_info(backUpInst[tid]->new_order_entry_back, new_order[indx]);
+	flush_caches((void *)&backUpInst[tid]->fill_new_order_entry_indx, (unsigned)sizeof(backUpInst[tid]->fill_new_order_entry_indx));
+	flush_caches((void *)&backUpInst[tid]->new_order_entry_back, (unsigned)sizeof(backUpInst[tid]->new_order_entry_back));
+	s_fence();
+	backUpInst[tid]->fill_new_order_entry_back_valid = 1;
+	flush_caches(&backUpInst[tid]->fill_new_order_entry_back_valid, sizeof(backUpInst[tid]->fill_new_order_entry_back_valid));
+	s_fence();
+#endif
+
+	new_order[indx].no_o_id = _no_o_id;
+	new_order[indx].no_d_id = _no_d_id;
+	new_order[indx].no_w_id = _no_w_id;
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
+	flush_caches((void *)&new_order[indx], (unsigned)sizeof(new_order[indx]));
+	s_fence();
+#endif
+}
+
 void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt)
 {
 	int indx = (_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT + (_d_id - 1) * N_ORDER_PER_DISTRICT + (_o_id - 1) % N_ORDER_PER_DISTRICT;
@@ -758,6 +737,28 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 	// Korakit
 	// volatile
 	amount += ol_quantity * item[_i_id - 1].i_price;
+}
+
+void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int _ol_o_id, int ol_num, int ol_i_id)
+{
+	int indx = (_ol_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT * N_ORDER_LINE_PER_ORDER + (_ol_d_id - 1) * N_ORDER_PER_DISTRICT * N_ORDER_LINE_PER_ORDER + (_ol_o_id - 1) * N_ORDER_LINE_PER_ORDER + ol_num;
+	order_line[indx].ol_o_id = _ol_o_id;
+	order_line[indx].ol_d_id = _ol_d_id;
+	order_line[indx].ol_w_id = _ol_w_id;
+	order_line[indx].ol_number = ol_num;
+	order_line[indx].ol_i_id = ol_i_id;
+	order_line[indx].ol_supply_w_id = _ol_w_id;
+	order_line[indx].ol_delivery_d = 0;
+	order_line[indx].ol_amount = rand_local(1, 999999) / 100.0;
+	order_line[indx].ol_quantity = 5.0;
+	// random_a_string(24, 24, order_line[indx].ol_dist_info);
+
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
+	backUpInst[tid]->fill_new_order_line_entry_valid = indx;
+	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
+	s_fence();
+#endif
 }
 
 /* Multi-threading */
