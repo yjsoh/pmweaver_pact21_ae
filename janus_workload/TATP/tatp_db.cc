@@ -328,7 +328,7 @@ void TATP_DB::discard_backup(int thread_id, long subId)
 void TATP_DB::update_location(long subId, uint64_t vlr)
 {
 #ifdef _ENABLE_LIBPMEMOBJ
-	pmem::obj::transaction::snapshot(&subscriber_table[subId].vlr_location, sizeof(subscriber_table[subId].vlr_location));
+	pmem::obj::transaction::snapshot(&subscriber_table[subId].vlr_location);
 #endif
 
 	subscriber_table[subId].vlr_location = vlr;
