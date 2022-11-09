@@ -52,6 +52,6 @@ tatp.eadr.clobber: $(SOURCES) clobber.o context.o admin_pop.o
 	$(CLOBBERCLANGPP) tatp_db.eadr.o tatp_nvm.eadr.o common.eadr.o clobber.o context.o admin_pop.o $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $(LDFLAGS_CLOBBER) -o $@
 
 clean:
-	rm -f tatp.adr.undo tatp.adr.clobber
-	rm -f tatp.eadr.undo tatp.eadr.clobber
+	rm -f tatp.adr.undo tatp.adr.clobber tatp.adr.pmdk
+	rm -f tatp.eadr.undo tatp.eadr.clobber tatp.eadr.pmdk
 	rm -f *.o

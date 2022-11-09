@@ -1,7 +1,7 @@
 #!/bin/bash
 
 domain=(adr eadr)
-binary=(pmdk)
+binary=(clobber undo pmdk)
 repeats=10
 args="1000000 0 1 10"
 # mkdir -p agr_tatp
@@ -20,5 +20,7 @@ for i in $(seq $repeats); do
 		done
 	done
 
-	yj-noti "[$0] $i/$repeats"
+	yj-noti "[$0] $i/$repeats $(wc -l tatp.csv)"
 done
+
+yj-noti "[$0] Done"
