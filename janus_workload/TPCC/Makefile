@@ -5,10 +5,10 @@ CLOBBERCLANGPP:=~/agr/Clobber-NVM/build/bin/clang++
 CLOBBERLOGCLANG:=~/agr/Clobber-NVM/clobberlogclang
 CLOBBERLOGCLANGPP:=~/agr/Clobber-NVM/clobberlogclangpp
 
-CFLAGS=-O1 -g -mclwb -D_SKIP_INITIALIZATION
+CFLAGS=-O1 -g -mclwb
 CLOBBER_CFLAGS=-mclwb
 SOURCES=tpcc_db.cc tpcc_nvm.cc common.cc
-LDLIBS:=-lpmem -pthread -lpmemobj
+LDLIBS=-pthread -lpmem -lpmemobj
 LDFLAGS_CLOBBER:=-Wl,--wrap=pthread_join -Wl,--wrap=pthread_create\
 				-Wl,--wrap=pthread_mutex_lock\
 				-Wl,--wrap=pthread_mutex_unlock\
@@ -52,6 +52,6 @@ tpcc.eadr.clobber: $(SOURCES) clobber.o context.o admin_pop.o
 	$(CLOBBERCLANGPP) tpcc_db.eadr.o tpcc_nvm.eadr.o common.eadr.o clobber.o context.o admin_pop.o $(CFLAGS) $(EADR_FLAG) $(LDLIBS) $(LDFLAGS_CLOBBER) -o $@
 
 clean:
-	rm -f tpcc.adr.undo tpcc.adr.clobber
-	rm -f tpcc.eadr.undo tpcc.eadr.clobber
+	rm -f tpcc.adr.undo tpcc.adr.clobber tpcc.adr.pmdk
+	rm -f tpcc.eadr.undo tpcc.eadr.clobber tpcc.eadr.pmdk
 	rm -f *.o

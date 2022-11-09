@@ -310,11 +310,13 @@ void init_db(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems)
 
 #ifdef _ENABLE_LIBPMEMOBJ
 	table->initialize(nthreads, nwarehouse, nitems);
-	table->populate_tables();
+	pmem::obj::transaction::run(pool, [&]
+								{ table->populate_tables(); });
 #else
 	tpcc_db->initialize(nthreads, nwarehouse, nitems);
 	tpcc_db->populate_tables();
 #endif
+	printf("%s Done.\n", __func__);
 }
 
 void deinit_db(uint64_t nthreads)
@@ -373,7 +375,7 @@ uint64_t new_orders_nops(uint64_t tid, uint64_t nops, uint64_t nwarehouse, uint6
 
 		// std::sort(item_ids, item_ids + ol_cnt);
 #ifdef _ENABLE_LIBPMEMOBJ
-try
+		try
 		{
 			// pmem::obj::transaction::run(pool, [&]
 			// table->update_location(subId, vlr);
@@ -393,7 +395,6 @@ try
 					  << std::endl;
 			return 1;
 		}
-
 #else
 		tpcc_db->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt);
 #endif
@@ -449,7 +450,7 @@ uint64_t new_orders(uint64_t tid, uint64_t nwarehouse, uint64_t num_items)
 		// std::sort(item_ids, item_ids + ol_cnt);
 
 #ifdef _ENABLE_LIBPMEMOBJ
-try
+		try
 		{
 			// pmem::obj::transaction::run(pool, [&]
 			// table->update_location(subId, vlr);
@@ -469,7 +470,6 @@ try
 					  << std::endl;
 			return 1;
 		}
-
 #else
 		tpcc_db->new_order_tx(tid, w_id, d_id, c_id, item_ids, ol_cnt);
 #endif
@@ -489,6 +489,14 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "%s N_WAREHOUSE N_ITEMS NTHREADS DURATION NOPS\n", argv[0]);
 		return -1;
 	}
+
+#ifdef _ENABLE_LOGGING
+	printf("Logging Enabled\n");
+#endif
+
+#ifdef _ENABLE_LIBPMEMOBJ
+	printf("Libpmemobj Enabled\n");
+#endif
 
 	uint64_t nwarehouse = atoi(argv[1]);
 	uint64_t nitems = atoi(argv[2]);

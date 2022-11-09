@@ -471,7 +471,6 @@ void TPCC_DB::copy_order_line_info(order_line_entry &dest, order_line_entry &sou
 }
 
 /* Transactions*/
-#ifdef _ENABLE_LIBPMEMOBJ
 void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids, int ol_cnt)
 {
 
@@ -490,90 +489,6 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids,
 
 	// order
 	int o_indx = d_indx * N_ORDER_PER_DISTRICT + (d_o_id - 1) % N_ORDER_PER_DISTRICT;
-
-	district[d_indx].d_next_o_id++;
-
-	// ~= create_neworder
-	fill_new_order_entry(w_id, d_id, d_o_id, tid);
-
-	// ~= create_order
-	update_order_entry(tid, w_id, d_id, d_o_id, c_id, ol_cnt);
-
-	float total_amount = 0.0;
-	for (int i = 0; i < ol_cnt; i++)
-	{
-		// ~= modify_stock
-		update_stock_entry(tid, w_id, item_ids[i], d_id, total_amount, i);
-
-		fill_new_order_line_entry(tid, w_id, d_id, d_o_id, i, item_ids[i]);
-	}
-
-	return;
-}
-#else
-void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids, int ol_cnt)
-{
-
-	// warehouse
-	int w_indx = (w_id - 1);
-
-	// district
-	int d_indx = w_indx * N_DISTRICT_PER_WAREHOUSE + (d_id - 1);
-	int d_o_id = (district[d_indx].d_next_o_id % 15) + 1;
-	/*
-	queue_t reqLocks;
-	reqLocks.push(d_indx); // Lock for district
-	*/
-	/*
-	if(TPCC_DEBUG)
-	  // std::cout<<"**NOTx** district lock id: "<<d_indx<<std::endl;
-	*/
-
-	// customer
-	int c_indx = d_indx * N_CUSTOMER_PER_DISTRICT + (c_id - 1);
-
-	// new order
-	int no_indx = d_indx * N_NEW_ORDER_PER_DISTRICT + (d_o_id - 2101) % N_NEW_ORDER_PER_DISTRICT;
-
-	// order
-	int o_indx = d_indx * N_ORDER_PER_DISTRICT + (d_o_id - 1) % N_ORDER_PER_DISTRICT;
-
-	/*
-	if(TPCC_DEBUG)
-	  // std::cout<<"**NOTx** ol_cnt: "<<ol_cnt<<std::endl;
-	// */
-	// for (int i = 0; i < ol_cnt; i++)
-	// {
-	// 	int item_lock_id = num_warehouses * 10 + (w_id - 1) * num_items + item_ids[i] - 1;
-	// 	/*
-	// 	reqLocks.push(item_lock_id); // Lock for each item in stock table
-	// 	*/
-	// 	/*
-	// 	if(TPCC_DEBUG)
-	// 	  // std::cout<<"**NOTx** item lock id: "<<item_lock_id<<" thread id: "<<tid<<std::endl;
-	// 	*/
-	// }
-	// Korakit
-	// remove MT stuff
-	// acquire_locks(tid, reqLocks);
-	/*
-	if(TPCC_DEBUG)
-	  // std::cout<<"**NOTx** finished start tx: "<<std::endl;
-	*/
-
-	// float w_tax = warehouse[w_indx].w_tax;
-	// float d_tax = district[d_indx].d_tax;
-	// int d_o_id = district[d_indx].d_next_o_id;
-	// int no_indx = (w_id - 1) * 10 * 900 + (d_id - 1) * 900 + (d_o_id - 2101) % 900;
-
-	// int o_indx = (w_id - 1) * 10 * 3000 + (d_id - 1) * 3000 + (d_o_id - 1) % 3000;
-
-	// Korakit
-	// real stuff here
-	//  okay we gonna try really simple stuff first
-	//  let's force all writes when the transaction completes
-	//   flush_caches(uint64_t addr, unsigned size);
-	//   s_fence();
 
 #ifdef _ENABLE_LOGGING
 	// prepare backup log
@@ -597,6 +512,10 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids,
 	flush_caches(&backUpInst[tid]->district_back, sizeof(backUpInst[tid]->district_back));
 	flush_caches((void *)&district[d_indx].d_next_o_id, (unsigned)sizeof(district[d_indx].d_next_o_id));
 	s_fence();
+#endif
+
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::snapshot(&district[d_indx]);
 #endif
 
 	district[d_indx].d_next_o_id++;
@@ -636,7 +555,6 @@ void TPCC_DB::new_order_tx(int tid, int w_id, int d_id, int c_id, int *item_ids,
 
 	return;
 }
-#endif
 
 void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int tid)
 {
@@ -656,9 +574,15 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	s_fence();
 #endif
 
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::snapshot(&new_order[indx]);
+#endif
+
+	/* Main Updates */
 	new_order[indx].no_o_id = _no_o_id;
 	new_order[indx].no_d_id = _no_d_id;
 	new_order[indx].no_w_id = _no_w_id;
+
 #ifdef _ENABLE_LIBPMEMOBJ
 #else
 	flush_caches((void *)&new_order[indx], (unsigned)sizeof(new_order[indx]));
@@ -669,10 +593,7 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int _c_id, int _ol_cnt)
 {
 	int indx = (_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT + (_d_id - 1) * N_ORDER_PER_DISTRICT + (_o_id - 1) % N_ORDER_PER_DISTRICT;
-	// indx = indx < 0 ? -indx : indx;
-	// indx = indx % (num_warehouses * 10 * 900);
-	// Korakit
-	// create backup
+
 #ifdef _ENABLE_LOGGING
 	backUpInst[tid]->update_order_entry_indx = indx;
 	backUpInst[tid]->order_entry_back = order[indx];
@@ -685,6 +606,11 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 	s_fence();
 #endif
 
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::snapshot(&order[indx]);
+#endif
+
+	/* Main Updates */
 	order[indx].o_id = _o_id;
 	order[indx].o_d_id = _d_id;
 	order[indx].o_w_id = _w_id;
@@ -693,6 +619,7 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 	order[indx].o_carrier_id = 0;
 	order[indx].o_ol_cnt = _ol_cnt;
 	order[indx].o_all_local = 1;
+
 #ifdef _ENABLE_LIBPMEMOBJ
 #else
 	flush_caches((void *)&order[indx], (unsigned)sizeof(order[indx]));
@@ -716,6 +643,11 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 	s_fence();
 #endif
 
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::snapshot(&stock[indx]);
+#endif
+
+	/* Main Updates */
 	if (stock[indx].s_quantity - ol_quantity > 10)
 	{
 		stock[indx].s_quantity -= ol_quantity;
@@ -725,9 +657,9 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 		stock[indx].s_quantity -= ol_quantity;
 		stock[indx].s_quantity += 91;
 	}
-
 	stock[indx].s_ytd += ol_quantity;
 	stock[indx].s_order_cnt += 1;
+
 #ifdef _ENABLE_LIBPMEMOBJ
 #else
 	flush_caches((void *)&stock[indx], (unsigned)sizeof(stock[indx]));
@@ -742,6 +674,11 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int _ol_o_id, int ol_num, int ol_i_id)
 {
 	int indx = (_ol_w_id - 1) * N_DISTRICT_PER_WAREHOUSE * N_ORDER_PER_DISTRICT * N_ORDER_LINE_PER_ORDER + (_ol_d_id - 1) * N_ORDER_PER_DISTRICT * N_ORDER_LINE_PER_ORDER + (_ol_o_id - 1) * N_ORDER_LINE_PER_ORDER + ol_num;
+
+#ifdef _ENABLE_LIBPMEMOBJ
+	pmem::obj::transaction::snapshot(&order_line[indx]);
+#endif
+
 	order_line[indx].ol_o_id = _ol_o_id;
 	order_line[indx].ol_d_id = _ol_d_id;
 	order_line[indx].ol_w_id = _ol_w_id;
@@ -753,8 +690,7 @@ void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int
 	order_line[indx].ol_quantity = 5.0;
 	// random_a_string(24, 24, order_line[indx].ol_dist_info);
 
-#ifdef _ENABLE_LIBPMEMOBJ
-#else
+#ifdef _ENABLE_LOGGING
 	backUpInst[tid]->fill_new_order_line_entry_valid = indx;
 	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
 	s_fence();
