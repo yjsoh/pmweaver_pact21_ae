@@ -327,13 +327,17 @@ void TATP_DB::discard_backup(int thread_id, long subId)
 
 void TATP_DB::update_location(long subId, uint64_t vlr)
 {
-	subscriber_table[subId].vlr_location = vlr;
 #ifdef _ENABLE_LIBPMEMOBJ
-	// no flush or sfence
-#else
+	pmem::obj::transaction::snapshot(&subscriber_table[subId].vlr_location, sizeof(subscriber_table[subId].vlr_location));
+#endif
+
+	subscriber_table[subId].vlr_location = vlr;
+
+#ifdef _ENABLE_LOGGING
 	flush_caches(&subscriber_table[subId], sizeof(subscriber_table[subId]));
 	s_fence();
 #endif
+
 	return;
 }
 

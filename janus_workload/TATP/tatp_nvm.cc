@@ -83,7 +83,6 @@ void init_db(uint64_t num_subscribers, uint64_t nthreads)
 	my_tatp_db->initialize(num_subscribers, nthreads);
 }
 
-#ifdef _ENABLE_LIBPMEMOBJ
 uint64_t update_locations(uint64_t nops, uint64_t id)
 {
 	uint64_t ops = 0;
@@ -93,6 +92,24 @@ uint64_t update_locations(uint64_t nops, uint64_t id)
 
 		long subId = my_tatp_db->get_random_s_id(id);
 		uint64_t vlr = my_tatp_db->get_random_vlr(id);
+
+		pthread_mutex_lock(&my_tatp_db->lock_[subId]);
+
+#ifdef _ENABLE_LOGGING
+		// Backup memory is within thread local.
+		// But don't allow other thread to change it to avoid stale backup.
+		// my_tatp_db->backup_location(id, subId);
+		memcpy(&my_tatp_db->backup[id], &my_tatp_db->subscriber_table[subId], sizeof(subscriber_entry));
+		flush_caches(&my_tatp_db->backup[id], sizeof(subscriber_entry));
+		s_fence();
+
+		/* Set the valid bit to 1 */
+		my_tatp_db->valid[id] = 1;
+		flush_caches(&my_tatp_db->valid[id], sizeof(VALID_BIT_TYPE));
+		s_fence();
+#endif
+
+#ifdef _ENABLE_LIBPMEMOBJ
 		try
 		{
 			pmem::obj::transaction::run(pool, [&]
@@ -110,47 +127,13 @@ uint64_t update_locations(uint64_t nops, uint64_t id)
 					  << std::endl;
 			return 1;
 		}
-		ops++;
-	}
-
-	fprintf(stdout, "Stop received. Returning: %lu\n", ops);
-
-	return ops;
-}
 #else
-uint64_t update_locations(uint64_t nops, uint64_t id)
-{
-	uint64_t ops = 0;
-	fprintf(stdout, "Running received.\n");
-	while (!stop)
-	{
-
-		long subId = my_tatp_db->get_random_s_id(id);
-		uint64_t vlr = my_tatp_db->get_random_vlr(id);
-
-		// fprintf(stdout, "subId=%ld, vlr=%lu\n", subId, vlr);
-
-		pthread_mutex_lock(&my_tatp_db->lock_[subId]);
-#ifdef _ENABLE_LOGGING
-
-		// Backup memory is within thread local.
-		// But don't allow other thread to change it to avoid stale backup.
-		// my_tatp_db->backup_location(id, subId);
-		memcpy(&my_tatp_db->backup[id], &my_tatp_db->subscriber_table[subId], sizeof(subscriber_entry));
-		flush_caches(&my_tatp_db->backup[id], sizeof(subscriber_entry));
-		s_fence();
-
-		/* Set the valid bit to 1 */
-		my_tatp_db->valid[id] = 1;
-		flush_caches(&my_tatp_db->valid[id], sizeof(VALID_BIT_TYPE));
-		s_fence();
+		my_tatp_db->update_location(subId, vlr);
 #endif
 
-		my_tatp_db->update_location(subId, vlr);
-
 		pthread_mutex_unlock(&my_tatp_db->lock_[subId]);
-#ifdef _ENABLE_LOGGING
 
+#ifdef _ENABLE_LOGGING
 		// Backup memory is within thread local.
 		// Don't have to be inside the critial section.
 		// my_tatp_db->discard_backup(id, subId);
@@ -165,7 +148,7 @@ uint64_t update_locations(uint64_t nops, uint64_t id)
 
 	return ops;
 }
-#endif
+
 // from stackoverflow: https://stackoverflow.com/questions/68804469/subtract-two-timespec-objects-find-difference-in-time-or-duration
 struct timespec diff_timespec(const struct timespec *time1,
 							  const struct timespec *time0)
