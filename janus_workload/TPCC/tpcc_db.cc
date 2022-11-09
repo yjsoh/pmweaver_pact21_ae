@@ -695,6 +695,12 @@ void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int
 	flush_caches(&backUpInst[tid]->fill_new_order_line_entry_valid, sizeof(backUpInst[tid]->fill_new_order_line_entry_valid));
 	s_fence();
 #endif
+
+#ifdef _ENABLE_LIBPMEMOBJ
+#else
+	flush_caches((void *)&order_line[indx], (unsigned)sizeof(order_line[indx]));
+	s_fence();
+#endif
 }
 
 /* Multi-threading */
