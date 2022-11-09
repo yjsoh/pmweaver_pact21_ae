@@ -72,9 +72,14 @@ void init_db(uint64_t num_subscribers, uint64_t nthreads)
 		std::cerr << "Exception: " << e.what() << std::endl;
 		return;
 	}
-	table->initialize(num_subscribers, nthreads);
 #endif
+
 	my_tatp_db = new TATP_DB(num_subscribers);
+
+#ifdef _ENABLE_LIBPMEMOBJ
+	table->initialize(num_subscribers, nthreads);
+#else
+#endif
 	my_tatp_db->initialize(num_subscribers, nthreads);
 }
 
@@ -90,11 +95,8 @@ uint64_t update_locations(uint64_t nops, uint64_t id)
 		uint64_t vlr = my_tatp_db->get_random_vlr(id);
 		try
 		{
-			// pmem::obj::transaction::run(pool, [&]
-			table->update_location(subId, vlr);
-			// 							{ table->update_location(subId, vlr); });
-			// pmem::obj::transaction::run(pool, [&]
-			// 							{ table.get()->subscriber_table[subId].vlr_location = vlr; });
+			pmem::obj::transaction::run(pool, [&]
+										{ table->update_location(subId, vlr); });
 		}
 		catch (const std::runtime_error &e)
 		{
