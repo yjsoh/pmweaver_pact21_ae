@@ -45,8 +45,14 @@ void TATP_DB::initialize(unsigned num_subscribers, int nthreads)
 	special_facility_table = pmem::obj::make_persistent<special_facility_entry[]>(4 * num_subscribers);
 	call_forwarding_table = pmem::obj::make_persistent<call_forwarding_entry[]>(3 * 4 * num_subscribers); });
 #else
+
+#if defined(_ENABLE_VOLATILE)
+	std::cout << "Allocating malloc of " << (double)(total_alloc_size) / (1UL << 20) << " MB\n";
+	void *pool = malloc(total_alloc_size);
+#else
+	std::cout << "Allocating pmalloc of " << (double)(total_alloc_size) / (1UL << 20) << " MB\n";
 	void *pool = pmalloc(total_alloc_size);
-	std::cout << "Allocating aligned_malloc of " << (double)(total_alloc_size) / (1UL << 20) << " MB\n";
+#endif
 
 	subscriber_table = (subscriber_entry *)(pool);
 
@@ -334,6 +340,7 @@ void TATP_DB::update_location(long subId, uint64_t vlr)
 	subscriber_table[subId].vlr_location = vlr;
 
 #ifdef _ENABLE_LIBPMEMOBJ
+#elif _ENABLE_VOLATILE
 #else
 	flush_caches(&subscriber_table[subId], sizeof(subscriber_table[subId]));
 	s_fence();

@@ -77,6 +77,21 @@ void TPCC_DB::initialize(uint64_t nthreads, uint64_t nwarehouse, uint64_t nitems
 	assert(order.get() != NULL);
 	assert(order_line.get() != NULL);
 	assert(new_order.get() != NULL);
+#elif defined(_ENABLE_VOLATILE)
+	warehouse = (warehouse_entry *)malloc(nwarehouse * sizeof(warehouse_entry));
+	district = (district_entry *)malloc(num_districts * sizeof(district_entry));
+	customer = (customer_entry *)malloc(num_customers * sizeof(customer_entry));
+	stock = (stock_entry *)malloc(num_stocks * sizeof(stock_entry));
+	item = (item_entry *)malloc(nitems * sizeof(item_entry));
+	history = (history_entry *)malloc(num_histories * sizeof(history_entry));
+	order = (order_entry *)malloc(num_orders * sizeof(order_entry));
+	order_line = (order_line_entry *)malloc(num_order_lines * sizeof(order_line_entry));
+	new_order = (new_order_entry *)malloc(num_new_orders * sizeof(new_order_entry));
+	backUpInst = (struct backUpLog **)malloc(nthreads * sizeof(struct backUpLog));
+	for (uint64_t i = 0; i < nthreads; i++)
+	{
+		backUpInst[i] = (struct backUpLog *)malloc(sizeof(struct backUpLog));
+	}
 #else
 	init_pmalloc(total_mem);
 	warehouse = (warehouse_entry *)pmalloc(nwarehouse * sizeof(warehouse_entry));
@@ -584,6 +599,7 @@ void TPCC_DB::fill_new_order_entry(int _no_w_id, int _no_d_id, int _no_o_id, int
 	new_order[indx].no_w_id = _no_w_id;
 
 #ifdef _ENABLE_LIBPMEMOBJ
+#elif _ENABLE_VOLATILE
 #else
 	flush_caches((void *)&new_order[indx], (unsigned)sizeof(new_order[indx]));
 	s_fence();
@@ -621,6 +637,7 @@ void TPCC_DB::update_order_entry(int tid, int _w_id, short _d_id, int _o_id, int
 	order[indx].o_all_local = 1;
 
 #ifdef _ENABLE_LIBPMEMOBJ
+#elif _ENABLE_VOLATILE
 #else
 	flush_caches((void *)&order[indx], (unsigned)sizeof(order[indx]));
 	s_fence();
@@ -661,6 +678,7 @@ void TPCC_DB::update_stock_entry(int tid, int _w_id, int _i_id, int _d_id, float
 	stock[indx].s_order_cnt += 1;
 
 #ifdef _ENABLE_LIBPMEMOBJ
+#elif _ENABLE_VOLATILE
 #else
 	flush_caches((void *)&stock[indx], (unsigned)sizeof(stock[indx]));
 	s_fence();
@@ -697,6 +715,7 @@ void TPCC_DB::fill_new_order_line_entry(int tid, int _ol_w_id, int _ol_d_id, int
 #endif
 
 #ifdef _ENABLE_LIBPMEMOBJ
+#elif _ENABLE_VOLATILE
 #else
 	flush_caches((void *)&order_line[indx], (unsigned)sizeof(order_line[indx]));
 	s_fence();

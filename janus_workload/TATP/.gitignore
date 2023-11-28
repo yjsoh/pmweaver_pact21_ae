@@ -1,4 +1,6 @@
 *.o
+tatp.adr.volt
+tatp.eadr.volt
 tatp.adr.undo
 tatp.eadr.undo
 tatp.adr.pmdk
